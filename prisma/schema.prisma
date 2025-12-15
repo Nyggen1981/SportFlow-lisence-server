@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model License {
+  id         String   @id @default(cuid())
+  key        String   @unique              // Hemmelig lisensnøkkel kunden legger i sin .env
+  orgName    String
+  orgSlug    String   @unique              // F.eks. "saudail"
+  plan       String   @default("paid")     // "paid" | "free" | "trial"
+  isActive   Boolean  @default(true)
+  validFrom  DateTime @default(now())
+  validUntil DateTime?                     // null = ingen sluttdato (typisk for free-plan)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  events     LicenseEvent[]
+}
+
+model LicenseEvent {
+  id        String   @id @default(cuid())
+  licenseId String
+  license   License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  type      String   // "created" | "extended" | "deactivated" | "validated"
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([licenseId, createdAt])
+}
