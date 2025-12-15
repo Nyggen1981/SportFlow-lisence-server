@@ -10,13 +10,19 @@ export default function AdminDashboard() {
   useEffect(() => {
     // Check if user is authenticated
     const checkAuth = async () => {
-      // Simple check - in production you'd verify the cookie server-side
-      const cookies = document.cookie;
-      if (!cookies.includes("admin-auth=authenticated")) {
+      try {
+        const response = await fetch("/api/admin/check");
+        const data = await response.json();
+        
+        if (!data.authenticated) {
+          router.push("/admin/login");
+          return;
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error("Auth check failed:", error);
         router.push("/admin/login");
-        return;
       }
-      setLoading(false);
     };
 
     checkAuth();
