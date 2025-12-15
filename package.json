@@ -1,29 +1,29 @@
-﻿{
-    "name":  "arena-booking-lisence-server",
-    "version":  "0.1.0",
-    "private":  true,
-    "scripts":  {
-                    "dev":  "next dev",
-                    "build":  "next build",
-                    "start":  "next start",
-                    "lint":  "eslint",
-                    "postinstall":  "prisma generate"
-                },
-    "dependencies":  {
-                         "dotenv":  "^17.2.3",
-                         "next":  "16.0.10",
-                         "react":  "19.2.1",
-                         "react-dom":  "19.2.1",
-                         "@prisma/client":  "5.20.0"
-                     },
-    "devDependencies":  {
-                            "@types/node":  "^20",
-                            "@types/react":  "^19",
-                            "@types/react-dom":  "^19",
-                            "babel-plugin-react-compiler":  "1.0.0",
-                            "eslint":  "^9",
-                            "eslint-config-next":  "16.0.10",
-                            "typescript":  "^5",
-                            "prisma":  "5.20.0"
-                        }
+{
+  "name": "arena-booking-lisence-server",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "5.20.0",
+    "dotenv": "^17.2.3",
+    "next": "16.0.10",
+    "react": "19.2.1",
+    "react-dom": "19.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "1.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.10",
+    "prisma": "5.20.0",
+    "typescript": "^5"
+  }
 }
