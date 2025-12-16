@@ -26,7 +26,9 @@ export default function AdminLoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Redirect to admin dashboard or home
+        // Lagre passord for API-kall (brukes av dashboard)
+        sessionStorage.setItem("adminPassword", password);
+        // Redirect to admin dashboard
         router.push("/admin");
         router.refresh();
       } else {

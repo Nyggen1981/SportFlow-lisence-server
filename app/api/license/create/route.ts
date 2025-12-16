@@ -1,29 +1,23 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { randomUUID } from "crypto";
+import { LICENSE_TYPES, LicenseType } from "@/lib/license-config";
 
 type CreateBody = {
-  orgName?: string;
-  orgSlug?: string;
-  plan?: string;
-  validUntil?: string | null;
+  name?: string;
+  slug?: string;
+  contactEmail?: string;
+  contactName?: string;
+  contactPhone?: string;
+  licenseType?: string;
+  expiresAt?: string;
+  maxUsers?: number | null;
+  maxResources?: number | null;
+  notes?: string;
 };
 
 function isAuthorized(request: Request): boolean {
   const adminSecretHeader = request.headers.get("x-admin-secret") ?? "";
   const expected = process.env.LICENSE_ADMIN_PASSWORD ?? "";
-  
-  // Debug info (kun i development)
-  if (process.env.NODE_ENV === "development") {
-    console.log("Auth check:", {
-      hasHeader: !!adminSecretHeader,
-      headerLength: adminSecretHeader.length,
-      hasExpected: expected.length > 0,
-      expectedLength: expected.length,
-      match: adminSecretHeader === expected,
-    });
-  }
-  
   return expected.length > 0 && adminSecretHeader === expected;
 }
 
@@ -39,62 +33,87 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { orgName, orgSlug, plan = "paid", validUntil } = body;
+  const { 
+    name, 
+    slug, 
+    contactEmail, 
+    contactName,
+    contactPhone,
+    licenseType = "trial", 
+    expiresAt,
+    maxUsers,
+    maxResources,
+    notes
+  } = body;
 
-  if (!orgName || !orgSlug) {
+  // Validering
+  if (!name || !slug || !contactEmail) {
     return NextResponse.json(
-      { error: "orgName and orgSlug are required" },
+      { error: "name, slug, and contactEmail are required" },
       { status: 400 }
     );
   }
 
-  let validUntilDate: Date | null = null;
-  if (validUntil) {
-    const parsed = new Date(validUntil);
+  // Valider lisenstype
+  if (!Object.keys(LICENSE_TYPES).includes(licenseType)) {
+    return NextResponse.json(
+      { error: `licenseType must be one of: ${Object.keys(LICENSE_TYPES).join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  // Beregn utløpsdato
+  let expiresAtDate: Date;
+  if (expiresAt) {
+    const parsed = new Date(expiresAt);
     if (Number.isNaN(parsed.getTime())) {
       return NextResponse.json(
-        { error: "validUntil must be an ISO date string" },
+        { error: "expiresAt must be a valid ISO date string" },
         { status: 400 }
       );
     }
-    validUntilDate = parsed;
+    expiresAtDate = parsed;
+  } else {
+    // Default: 30 dager for trial, 365 dager for andre
+    const days = licenseType === "trial" ? 30 : 365;
+    expiresAtDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   }
 
-  const key = randomUUID();
-
   try {
-    const license = await prisma.license.create({
+    const org = await prisma.organization.create({
       data: {
-        orgName,
-        orgSlug,
-        plan,
-        key,
-        validUntil: validUntilDate
-      }
-    });
-
-    await prisma.licenseEvent.create({
-      data: {
-        licenseId: license.id,
-        type: "created",
-        meta: { orgName, orgSlug, plan, validUntil }
+        name,
+        slug,
+        contactEmail,
+        contactName,
+        contactPhone,
+        licenseType,
+        expiresAt: expiresAtDate,
+        maxUsers,
+        maxResources,
+        notes
       }
     });
 
     return NextResponse.json(
       {
-        id: license.id,
-        key
+        id: org.id,
+        licenseKey: org.licenseKey,
+        name: org.name,
+        slug: org.slug,
+        licenseType: org.licenseType,
+        expiresAt: org.expiresAt.toISOString()
       },
       { status: 201 }
     );
   } catch (error: any) {
     if (error.code === "P2002") {
       return NextResponse.json(
-        { error: "License for orgSlug or key already exists" },
+        { error: "Organization with this slug already exists" },
         { status: 409 }
       );
     }
+    console.error("Create organization error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

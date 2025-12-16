@@ -1,28 +1,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { LICENSE_TYPES } from "@/lib/license-config";
 
 type UpdateBody = {
-  orgSlug?: string;
+  slug?: string;
+  name?: string;
+  contactEmail?: string;
+  contactName?: string;
+  contactPhone?: string;
+  licenseType?: string;
   isActive?: boolean;
-  validUntil?: string | null;
-  plan?: string;
+  isSuspended?: boolean;
+  suspendReason?: string;
+  expiresAt?: string | null;
+  maxUsers?: number | null;
+  maxResources?: number | null;
+  notes?: string;
 };
 
 function isAuthorized(request: Request): boolean {
   const adminSecretHeader = request.headers.get("x-admin-secret") ?? "";
   const expected = process.env.LICENSE_ADMIN_PASSWORD ?? "";
-  
-  // Debug info (kun i development)
-  if (process.env.NODE_ENV === "development") {
-    console.log("Auth check:", {
-      hasHeader: !!adminSecretHeader,
-      headerLength: adminSecretHeader.length,
-      hasExpected: expected.length > 0,
-      expectedLength: expected.length,
-      match: adminSecretHeader === expected,
-    });
-  }
-  
   return expected.length > 0 && adminSecretHeader === expected;
 }
 
@@ -38,33 +36,59 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { orgSlug, isActive, validUntil, plan } = body;
+  const { slug, ...updates } = body;
 
-  if (!orgSlug) {
-    return NextResponse.json({ error: "orgSlug is required" }, { status: 400 });
+  if (!slug) {
+    return NextResponse.json({ error: "slug is required" }, { status: 400 });
   }
 
+  // Bygg data-objekt for oppdatering
   const data: any = {};
 
-  if (typeof isActive === "boolean") {
-    data.isActive = isActive;
+  if (updates.name !== undefined) data.name = updates.name;
+  if (updates.contactEmail !== undefined) data.contactEmail = updates.contactEmail;
+  if (updates.contactName !== undefined) data.contactName = updates.contactName;
+  if (updates.contactPhone !== undefined) data.contactPhone = updates.contactPhone;
+  if (updates.notes !== undefined) data.notes = updates.notes;
+  
+  if (typeof updates.isActive === "boolean") data.isActive = updates.isActive;
+  if (typeof updates.isSuspended === "boolean") data.isSuspended = updates.isSuspended;
+  if (updates.suspendReason !== undefined) data.suspendReason = updates.suspendReason;
+
+  if (typeof updates.maxUsers === "number" || updates.maxUsers === null) {
+    data.maxUsers = updates.maxUsers;
+  }
+  if (typeof updates.maxResources === "number" || updates.maxResources === null) {
+    data.maxResources = updates.maxResources;
   }
 
-  if (typeof plan === "string") {
-    data.plan = plan;
-  }
-
-  if (validUntil === null) {
-    data.validUntil = null;
-  } else if (typeof validUntil === "string") {
-    const parsed = new Date(validUntil);
-    if (Number.isNaN(parsed.getTime())) {
+  // Valider og sett lisenstype
+  if (updates.licenseType !== undefined) {
+    if (!Object.keys(LICENSE_TYPES).includes(updates.licenseType)) {
       return NextResponse.json(
-        { error: "validUntil must be an ISO date string or null" },
+        { error: `licenseType must be one of: ${Object.keys(LICENSE_TYPES).join(", ")}` },
         { status: 400 }
       );
     }
-    data.validUntil = parsed;
+    data.licenseType = updates.licenseType;
+  }
+
+  // Håndter expiresAt
+  if (updates.expiresAt === null) {
+    // Kan ikke sette expiresAt til null - det er required
+    return NextResponse.json(
+      { error: "expiresAt cannot be null" },
+      { status: 400 }
+    );
+  } else if (typeof updates.expiresAt === "string") {
+    const parsed = new Date(updates.expiresAt);
+    if (Number.isNaN(parsed.getTime())) {
+      return NextResponse.json(
+        { error: "expiresAt must be a valid ISO date string" },
+        { status: 400 }
+      );
+    }
+    data.expiresAt = parsed;
   }
 
   if (Object.keys(data).length === 0) {
@@ -72,24 +96,28 @@ export async function POST(request: Request) {
   }
 
   try {
-    const license = await prisma.license.update({
-      where: { orgSlug },
+    const org = await prisma.organization.update({
+      where: { slug },
       data
     });
 
-    await prisma.licenseEvent.create({
-      data: {
-        licenseId: license.id,
-        type: !license.isActive ? "deactivated" : "extended",
-        meta: data
+    return NextResponse.json({
+      success: true,
+      organization: {
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        licenseType: org.licenseType,
+        isActive: org.isActive,
+        isSuspended: org.isSuspended,
+        expiresAt: org.expiresAt.toISOString()
       }
     });
-
-    return NextResponse.json({ success: true }, { status: 200 });
   } catch (error: any) {
     if (error.code === "P2025") {
-      return NextResponse.json({ error: "License not found" }, { status: 404 });
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
+    console.error("Update organization error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

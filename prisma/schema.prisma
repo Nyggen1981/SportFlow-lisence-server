@@ -3,33 +3,87 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  // directUrl = env("DATABASE_URL_UNPOOLED")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-model License {
-  id         String   @id @default(cuid())
-  key        String   @unique              // Hemmelig lisensnøkkel kunden legger i sin .env
-  orgName    String
-  orgSlug    String   @unique              // F.eks. "saudail"
-  plan       String   @default("paid")     // "paid" | "free" | "trial"
-  isActive   Boolean  @default(true)
-  validFrom  DateTime @default(now())
-  validUntil DateTime?                     // null = ingen sluttdato (typisk for free-plan)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  events     LicenseEvent[]
+// Kunder/Organisasjoner som bruker Arena Booking
+model Organization {
+  id            String   @id @default(cuid())
+  
+  // Kundeinformasjon
+  name          String                          // "Haugesund IL"
+  slug          String   @unique                // "haugesund-il"
+  contactEmail  String
+  contactName   String?
+  contactPhone  String?
+  
+  // Lisensnøkkel (genereres automatisk, deles med kunden)
+  licenseKey    String   @unique @default(cuid())
+  
+  // Lisenstype: "free", "trial", "standard", "premium"
+  licenseType   String   @default("trial")
+  
+  // Datoer
+  createdAt     DateTime @default(now())
+  activatedAt   DateTime?                       // Settes ved første validate-kall
+  expiresAt     DateTime                        // Når abonnementet utløper
+  graceEndsAt   DateTime?                       // Siste dag med begrenset tilgang
+  
+  // Status
+  isActive      Boolean  @default(true)
+  isSuspended   Boolean  @default(false)
+  suspendReason String?
+  
+  // Begrensninger (null = bruk default fra licenseType)
+  maxUsers      Int?
+  maxResources  Int?
+  
+  // Statistikk rapportert fra appen
+  lastHeartbeat DateTime?
+  appVersion    String?
+  totalUsers    Int      @default(0)
+  totalBookings Int      @default(0)
+  
+  // Notater
+  notes         String?
+  
+  // Relasjoner
+  validations   LicenseValidation[]
+  
+  @@index([licenseKey])
+  @@index([isActive, expiresAt])
 }
 
-model LicenseEvent {
+// Logg over alle lisensvalideringer
+model LicenseValidation {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  timestamp      DateTime @default(now())
+  ipAddress      String?
+  userAgent      String?
+  appVersion     String?
+  
+  // Resultat: "valid", "expired", "grace", "invalid", "suspended"
+  status         String
+  
+  // Rapportert fra app
+  userCount      Int?
+  bookingCount   Int?
+  
+  @@index([organizationId, timestamp])
+  @@index([timestamp])
+}
+
+// Admin-brukere for lisensserver
+model AdminUser {
   id        String   @id @default(cuid())
-  licenseId String
-  license   License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
-  type      String   // "created" | "extended" | "deactivated" | "validated"
-  meta      Json?
+  email     String   @unique
+  password  String                              // bcrypt hash
+  name      String?
+  role      String   @default("admin")          // "super", "admin", "viewer"
   createdAt DateTime @default(now())
-
-  @@index([licenseId, createdAt])
+  lastLogin DateTime?
 }
