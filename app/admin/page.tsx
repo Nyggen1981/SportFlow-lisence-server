@@ -482,7 +482,7 @@ export default function AdminDashboard() {
             </p>
 
             {/* License Type Prices */}
-            <div style={styles.pricingSection}>
+            <div style={styles.pricingAdminSection}>
               <h3 style={styles.pricingSectionTitle}>Lisens-typer</h3>
               <div style={styles.pricingList}>
                 {Object.keys(LICENSE_TYPES).map(licenseType => {
@@ -560,7 +560,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Module Prices */}
-            <div style={styles.pricingSection}>
+            <div style={styles.pricingAdminSection}>
               <h3 style={styles.pricingSectionTitle}>Moduler</h3>
               <div style={styles.pricingList}>
                 {modules.map(module => {
@@ -1309,7 +1309,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: "700",
     fontSize: "1.1rem",
   },
-  pricingSection: {
+  pricingAdminSection: {
     marginBottom: "1.5rem",
   },
   pricingSectionTitle: {
