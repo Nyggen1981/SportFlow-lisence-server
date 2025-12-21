@@ -22,6 +22,23 @@ type Organization = {
   totalBookings: number;
 };
 
+type Module = {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  isStandard: boolean;
+  isActive: boolean;
+  price: number | null;
+};
+
+type OrganizationModule = {
+  id: string;
+  moduleId: string;
+  isActive: boolean;
+  module: Module;
+};
+
 type NewOrgForm = {
   name: string;
   slug: string;
@@ -47,6 +64,9 @@ export default function AdminDashboard() {
     contactName: ""
   });
   const [creating, setCreating] = useState(false);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [orgModules, setOrgModules] = useState<Record<string, OrganizationModule[]>>({});
+  const [loadingModules, setLoadingModules] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -63,6 +83,7 @@ export default function AdminDashboard() {
         if (storedPassword) {
           setPassword(storedPassword);
           await loadOrganizations(storedPassword);
+          await loadModules(storedPassword);
         }
         
         setLoading(false);
@@ -84,11 +105,74 @@ export default function AdminDashboard() {
       if (response.ok) {
         const data = await response.json();
         setOrganizations(data.organizations || []);
+        // Last moduler for alle organisasjoner
+        for (const org of data.organizations || []) {
+          await loadOrgModules(org.id, adminPassword);
+        }
       } else {
         setError("Kunne ikke laste organisasjoner");
       }
     } catch (err) {
       setError("Nettverksfeil ved lasting av data");
+    }
+  };
+
+  const loadModules = async (adminPassword: string) => {
+    try {
+      const response = await fetch("/api/modules/list", {
+        headers: { "x-admin-secret": adminPassword }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setModules(data.modules || []);
+      }
+    } catch (err) {
+      console.error("Kunne ikke laste moduler:", err);
+    }
+  };
+
+  const loadOrgModules = async (orgId: string, adminPassword: string) => {
+    try {
+      const response = await fetch(`/api/organizations/${orgId}/modules`, {
+        headers: { "x-admin-secret": adminPassword }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setOrgModules(prev => ({ ...prev, [orgId]: data.modules || [] }));
+      }
+    } catch (err) {
+      console.error("Kunne ikke laste organisasjonsmoduler:", err);
+    }
+  };
+
+  const toggleModule = async (orgId: string, moduleId: string, isActive: boolean) => {
+    if (!password) return;
+
+    setLoadingModules(prev => ({ ...prev, [`${orgId}-${moduleId}`]: true }));
+
+    try {
+      const response = await fetch(`/api/organizations/${orgId}/modules`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-secret": password
+        },
+        body: JSON.stringify({ moduleId, isActive })
+      });
+
+      if (response.ok) {
+        await loadOrgModules(orgId, password);
+        setSuccess(isActive ? "Modul aktivert" : "Modul deaktivert");
+      } else {
+        const data = await response.json();
+        setError(data.error || "Kunne ikke oppdatere modul");
+      }
+    } catch (err) {
+      setError("Nettverksfeil");
+    } finally {
+      setLoadingModules(prev => ({ ...prev, [`${orgId}-${moduleId}`]: false }));
     }
   };
 
@@ -494,6 +578,66 @@ export default function AdminDashboard() {
                     </button>
                   </div>
 
+                  {/* Modules Section */}
+                  <div style={styles.modulesSection}>
+                    <h4 style={styles.modulesTitle}>Moduler</h4>
+                    <div style={styles.modulesList}>
+                      {modules.map(module => {
+                          const orgModule = orgModules[org.id]?.find(om => om.moduleId === module.id);
+                          const isActive = orgModule?.isActive ?? module.isStandard;
+                          const isLoading = loadingModules[`${org.id}-${module.id}`] ?? false;
+
+                          return (
+                            <div key={module.id} style={styles.moduleItem}>
+                              <div style={styles.moduleInfo}>
+                                <span style={styles.moduleName}>
+                                  {module.name}
+                                  {module.isStandard && (
+                                    <span style={styles.standardBadge}>Standard</span>
+                                  )}
+                                </span>
+                                {module.description && (
+                                  <span style={styles.moduleDescription}>{module.description}</span>
+                                )}
+                                {module.price !== null && (
+                                  <span style={styles.modulePrice}>
+                                    {module.price} kr/mnd
+                                  </span>
+                                )}
+                              </div>
+                              <label style={{
+                                ...styles.toggleSwitch,
+                                ...(module.isStandard ? { opacity: 0.5, cursor: "not-allowed" } : {})
+                              }}>
+                                <input
+                                  type="checkbox"
+                                  checked={isActive}
+                                  disabled={module.isStandard || isLoading}
+                                  onChange={(e) => toggleModule(org.id, module.id, e.target.checked)}
+                                  style={styles.toggleInput}
+                                />
+                                <span style={{
+                                  ...styles.toggleSlider,
+                                  ...(isActive ? styles.toggleSliderActive : {}),
+                                  ...(isActive ? { 
+                                    boxShadow: "0 0 0 2px #3b82f6 inset",
+                                  } : {})
+                                }}>
+                                  <span style={{
+                                    ...styles.toggleSliderKnob,
+                                    ...(isActive ? styles.toggleSliderKnobActive : {})
+                                  }} />
+                                </span>
+                              </label>
+                            </div>
+                          );
+                        })}
+                      {modules.length === 0 && (
+                        <p style={styles.noModules}>Ingen moduler tilgjengelig</p>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Date picker when editing */}
                   {isEditing && pendingStatus && pendingStatus !== "inactive" && (
                     <div style={styles.datePickerRow}>
@@ -813,6 +957,111 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: "pointer",
     fontSize: "0.8rem",
     whiteSpace: "nowrap",
+  },
+  modulesSection: {
+    marginTop: "1rem",
+    padding: "1rem",
+    background: "#0a0a0a",
+    borderRadius: "8px",
+    border: "1px solid #262626",
+  },
+  modulesTitle: {
+    fontSize: "0.9rem",
+    fontWeight: "600",
+    margin: "0 0 0.75rem 0",
+    color: "#a3a3a3",
+  },
+  modulesList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.75rem",
+  },
+  moduleItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "0.75rem",
+    background: "#141414",
+    borderRadius: "6px",
+    border: "1px solid #262626",
+  },
+  moduleInfo: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.25rem",
+    flex: 1,
+  },
+  moduleName: {
+    fontSize: "0.9rem",
+    fontWeight: "500",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+  },
+  standardBadge: {
+    fontSize: "0.7rem",
+    padding: "0.15rem 0.4rem",
+    background: "rgba(59, 130, 246, 0.2)",
+    color: "#60a5fa",
+    borderRadius: "4px",
+    fontWeight: "500",
+  },
+  moduleDescription: {
+    fontSize: "0.75rem",
+    color: "#737373",
+  },
+  modulePrice: {
+    fontSize: "0.75rem",
+    color: "#22c55e",
+    fontWeight: "500",
+  },
+  noModules: {
+    fontSize: "0.85rem",
+    color: "#737373",
+    textAlign: "center",
+    padding: "1rem",
+  },
+  toggleSwitch: {
+    position: "relative",
+    display: "inline-block",
+    width: "44px",
+    height: "24px",
+    cursor: "pointer",
+  },
+  toggleInput: {
+    opacity: 0,
+    width: 0,
+    height: 0,
+  },
+  toggleSlider: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: "#333",
+    borderRadius: "24px",
+    transition: "0.3s",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+  },
+  toggleSliderActive: {
+    background: "#3b82f6",
+  },
+  toggleSliderKnob: {
+    position: "absolute",
+    height: "18px",
+    width: "18px",
+    left: "3px",
+    background: "#fff",
+    borderRadius: "50%",
+    transition: "0.3s",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+  },
+  toggleSliderKnobActive: {
+    left: "23px",
   },
   statusSection: {
     marginBottom: "1rem",

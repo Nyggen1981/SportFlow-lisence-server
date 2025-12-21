@@ -95,6 +95,21 @@ export async function POST(request: Request) {
       }
     });
 
+    // Aktiver booking-modulen (standard modul) automatisk
+    const bookingModule = await prisma.module.findUnique({
+      where: { key: "booking" }
+    });
+
+    if (bookingModule) {
+      await prisma.organizationModule.create({
+        data: {
+          organizationId: org.id,
+          moduleId: bookingModule.id,
+          isActive: true
+        }
+      });
+    }
+
     return NextResponse.json(
       {
         id: org.id,
