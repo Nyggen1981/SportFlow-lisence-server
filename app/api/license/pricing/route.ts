@@ -49,16 +49,28 @@ export async function GET(request: Request) {
     const totalMonthlyPrice = calculateMonthlyPrice(licenseType, org.modules, basePrice);
 
     // Bygg detaljert prisoversikt
+    const moduleList = org.modules.map(orgModule => ({
+      key: orgModule.module.key,
+      name: orgModule.module.name,
+      price: orgModule.module.price ?? 0,
+      isStandard: orgModule.module.isStandard
+    }));
+    
+    // Booking er alltid inkludert (unntatt inaktiv)
+    if (licenseType !== "inactive") {
+      moduleList.unshift({
+        key: "booking",
+        name: "Booking",
+        price: 0,
+        isStandard: true
+      });
+    }
+    
     const pricingBreakdown = {
       licenseType: org.licenseType,
       licenseTypeName: LICENSE_TYPES[licenseType]?.name || org.licenseType,
       basePrice,
-      modules: org.modules.map(orgModule => ({
-        key: orgModule.module.key,
-        name: orgModule.module.name,
-        price: orgModule.module.price ?? 0,
-        isStandard: orgModule.module.isStandard
-      })),
+      modules: moduleList,
       modulePrice,
       totalMonthlyPrice
     };

@@ -82,6 +82,7 @@ export async function POST(
     }
 
     // Hvis modulen er standard, må den alltid være aktivert
+    // (Note: Booking er ikke lenger en modul, men kjernefunksjonalitet)
     if (module.isStandard && !isActive) {
       return NextResponse.json(
         { error: "Standard modules cannot be deactivated" },

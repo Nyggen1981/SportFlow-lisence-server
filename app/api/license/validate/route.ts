@@ -161,6 +161,12 @@ export async function POST(request: Request) {
 
   if (status === "grace") {
     const modules = buildModulesObject(org.modules);
+    
+    // Booking er alltid inkludert (unntatt inaktiv)
+    if (licenseType !== "inactive") {
+      modules.booking = true;
+    }
+    
     const basePrice = getLicensePrice(licenseType, licenseTypePrice?.price);
     const totalMonthlyPrice = calculateMonthlyPrice(licenseType, org.modules, basePrice);
     
@@ -192,6 +198,12 @@ export async function POST(request: Request) {
   const daysUntilExpiry = getDaysUntilExpiry(org.expiresAt);
   const showRenewalWarning = daysUntilExpiry <= 30;
   const modules = buildModulesObject(org.modules);
+  
+  // Booking er alltid inkludert (unntatt inaktiv)
+  if (licenseType !== "inactive") {
+    modules.booking = true;
+  }
+  
   const basePrice = getLicensePrice(licenseType, licenseTypePrice?.price);
   const totalMonthlyPrice = calculateMonthlyPrice(licenseType, org.modules, basePrice);
 

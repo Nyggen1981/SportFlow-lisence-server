@@ -872,7 +872,10 @@ export default function AdminDashboard() {
 
                   {/* Modules Section */}
                   <div style={styles.modulesSection}>
-                    <h4 style={styles.modulesTitle}>Moduler</h4>
+                    <h4 style={styles.modulesTitle}>Tilleggsmoduler</h4>
+                    <p style={styles.modulesHint}>
+                      Booking er alltid inkludert (unntatt inaktiv lisens)
+                    </p>
                     <div style={styles.modulesList}>
                       {modules.map(module => {
                           const orgModule = orgModules[org.id]?.find(om => om.moduleId === module.id);
@@ -1412,8 +1415,14 @@ const styles: { [key: string]: React.CSSProperties } = {
   modulesTitle: {
     fontSize: "0.9rem",
     fontWeight: "600",
-    margin: "0 0 0.75rem 0",
+    margin: "0 0 0.5rem 0",
     color: "#a3a3a3",
+  },
+  modulesHint: {
+    fontSize: "0.75rem",
+    color: "#737373",
+    margin: "0 0 0.75rem 0",
+    fontStyle: "italic",
   },
   modulesList: {
     display: "flex",

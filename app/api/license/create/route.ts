@@ -95,20 +95,7 @@ export async function POST(request: Request) {
       }
     });
 
-    // Aktiver booking-modulen (standard modul) automatisk
-    const bookingModule = await prisma.module.findUnique({
-      where: { key: "booking" }
-    });
-
-    if (bookingModule) {
-      await prisma.organizationModule.create({
-        data: {
-          organizationId: org.id,
-          moduleId: bookingModule.id,
-          isActive: true
-        }
-      });
-    }
+    // Booking er kjernefunksjonalitet, ikke en modul - alltid inkludert (unntatt inaktiv)
 
     return NextResponse.json(
       {
