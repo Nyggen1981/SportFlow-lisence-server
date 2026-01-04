@@ -51,9 +51,6 @@ model Organization {
   // Notater
   notes         String?
   
-  // SportFlow-app URL (for å hente statistikk)
-  appUrl        String?                         // F.eks. "https://minapp.vercel.app"
-  
   // Relasjoner
   validations   LicenseValidation[]
   modules       OrganizationModule[]

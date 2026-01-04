@@ -17,7 +17,6 @@ type UpdateBody = {
   maxUsers?: number | null;
   maxResources?: number | null;
   notes?: string;
-  appUrl?: string | null;
 };
 
 function isAuthorized(request: Request): boolean {
@@ -52,7 +51,6 @@ export async function POST(request: Request) {
   if (updates.contactName !== undefined) data.contactName = updates.contactName;
   if (updates.contactPhone !== undefined) data.contactPhone = updates.contactPhone;
   if (updates.notes !== undefined) data.notes = updates.notes;
-  if (updates.appUrl !== undefined) data.appUrl = updates.appUrl;
   
   if (typeof updates.isActive === "boolean") data.isActive = updates.isActive;
   if (typeof updates.isSuspended === "boolean") data.isSuspended = updates.isSuspended;
