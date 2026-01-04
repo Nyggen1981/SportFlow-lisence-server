@@ -75,8 +75,9 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"info" | "modules" | "stats">("info");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
-  const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [editingPrice, setEditingPrice] = useState<{ type: "license" | "module"; id: string } | null>(null);
+  const [priceInputValue, setPriceInputValue] = useState("");
   
   // Form state
   const [newOrg, setNewOrg] = useState({ name: "", slug: "", contactEmail: "", contactName: "" });
@@ -253,6 +254,42 @@ export default function AdminDashboard() {
       }
     } catch {}
     setLoadingModules(prev => ({ ...prev, [`${orgId}-${moduleId}`]: false }));
+  };
+
+  const updateLicenseTypePrice = async (licenseType: string, price: number) => {
+    try {
+      const response = await fetch(`/api/license-types/${licenseType}/price`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": password },
+        body: JSON.stringify({ price })
+      });
+      if (response.ok) {
+        await loadLicenseTypePrices(password);
+        setEditingPrice(null);
+        setSuccess("Pris oppdatert");
+        setTimeout(() => setSuccess(""), 3000);
+      }
+    } catch {
+      setError("Kunne ikke oppdatere pris");
+    }
+  };
+
+  const updateModulePrice = async (moduleId: string, price: number | null) => {
+    try {
+      const response = await fetch(`/api/modules/${moduleId}/price`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": password },
+        body: JSON.stringify({ price })
+      });
+      if (response.ok) {
+        await loadModules(password);
+        setEditingPrice(null);
+        setSuccess("Modulpris oppdatert");
+        setTimeout(() => setSuccess(""), 3000);
+      }
+    } catch {
+      setError("Kunne ikke oppdatere pris");
+    }
   };
 
   const copyToClipboard = async (key: string) => {
@@ -528,7 +565,13 @@ export default function AdminDashboard() {
                               {orgModules[org.id]?.filter(om => om.isActive && om.module.price).map(om => (
                                 <div key={om.id} style={styles.pricingRow}>
                                   <span>{om.module.name}</span>
-                                  <span>{org.licenseType === "pilot" ? 0 : om.module.price} kr</span>
+                                  <span>
+                                    {org.licenseType === "pilot" ? (
+                                      <span style={{ color: "#a855f7" }}>0 kr (pilot)</span>
+                                    ) : (
+                                      `${om.module.price} kr`
+                                    )}
+                                  </span>
                                 </div>
                               ))}
                               <div style={styles.pricingTotal}>
@@ -541,10 +584,14 @@ export default function AdminDashboard() {
 
                         {activeTab === "modules" && (
                           <div style={styles.modulesTab}>
+                            {org.licenseType === "pilot" && (
+                              <p style={styles.pilotNote}>✨ Pilotkunde - alle moduler er gratis</p>
+                            )}
                             {modules.filter(m => m.key !== "booking").map(module => {
                               const orgModule = orgModules[org.id]?.find(om => om.moduleId === module.id);
                               const isActive = orgModule?.isActive ?? module.isStandard;
                               const isLoading = loadingModules[`${org.id}-${module.id}`];
+                              const isPilot = org.licenseType === "pilot";
 
                               return (
                                 <div key={module.id} style={styles.moduleItem}>
@@ -557,7 +604,13 @@ export default function AdminDashboard() {
                                       <p style={styles.moduleDesc}>{module.description}</p>
                                     )}
                                     {module.price && (
-                                      <p style={styles.modulePrice}>+{module.price} kr/mnd</p>
+                                      <p style={styles.modulePrice}>
+                                        {isPilot ? (
+                                          <span style={{ color: "#a855f7" }}>Gratis (pilot)</span>
+                                        ) : (
+                                          `+${module.price} kr/mnd`
+                                        )}
+                                      </p>
                                     )}
                                   </div>
                                   <label style={styles.toggle}>
@@ -713,36 +766,133 @@ export default function AdminDashboard() {
 
       {/* Pricing Modal */}
       {showPricingModal && (
-        <div style={styles.modalOverlay} onClick={() => setShowPricingModal(false)}>
+        <div style={styles.modalOverlay} onClick={() => { setShowPricingModal(false); setEditingPrice(null); }}>
           <div style={styles.modal} onClick={e => e.stopPropagation()}>
-            <h2 style={styles.modalTitle}>💰 Prisoversikt</h2>
+            <h2 style={styles.modalTitle}>💰 Prisadministrasjon</h2>
+            <p style={styles.pricingHint}>Klikk på en pris for å endre den. Pilotkunder får alle moduler gratis.</p>
             
             <h3 style={styles.pricingHeader}>Lisenstyper</h3>
             <div style={styles.pricingList}>
-              {Object.entries(LICENSE_TYPES).map(([key, val]) => (
-                <div key={key} style={styles.pricingListItem}>
-                  <span>{val.name}</span>
-                  <span style={styles.pricingListPrice}>
-                    {licenseTypePrices[key]?.price ?? val.price} kr/mnd
-                  </span>
-                </div>
-              ))}
+              {Object.entries(LICENSE_TYPES).map(([key, val]) => {
+                const currentPrice = licenseTypePrices[key]?.price ?? val.price;
+                const isEditing = editingPrice?.type === "license" && editingPrice.id === key;
+                
+                return (
+                  <div key={key} style={styles.pricingListItem}>
+                    <span style={styles.pricingItemName}>
+                      {val.name}
+                      {licenseTypePrices[key]?.isOverride && (
+                        <span style={styles.overrideTag}>Tilpasset</span>
+                      )}
+                    </span>
+                    {isEditing ? (
+                      <div style={styles.priceEditRow}>
+                        <input
+                          type="number"
+                          min="0"
+                          value={priceInputValue}
+                          onChange={e => setPriceInputValue(e.target.value)}
+                          style={styles.priceInput}
+                          autoFocus
+                          onKeyDown={e => {
+                            if (e.key === "Enter") {
+                              updateLicenseTypePrice(key, parseInt(priceInputValue) || 0);
+                            } else if (e.key === "Escape") {
+                              setEditingPrice(null);
+                            }
+                          }}
+                        />
+                        <button 
+                          style={styles.priceSaveBtn}
+                          onClick={() => updateLicenseTypePrice(key, parseInt(priceInputValue) || 0)}
+                        >
+                          ✓
+                        </button>
+                        <button 
+                          style={styles.priceCancelBtn}
+                          onClick={() => setEditingPrice(null)}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button 
+                        style={styles.priceButton}
+                        onClick={() => {
+                          setEditingPrice({ type: "license", id: key });
+                          setPriceInputValue(String(currentPrice));
+                        }}
+                      >
+                        {currentPrice} kr/mnd
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
-            <h3 style={styles.pricingHeader}>Moduler</h3>
+            <h3 style={styles.pricingHeader}>Tilleggsmoduler</h3>
+            <p style={styles.pricingSubHint}>Pilotkunder får disse gratis</p>
             <div style={styles.pricingList}>
-              {modules.filter(m => m.key !== "booking").map(m => (
-                <div key={m.id} style={styles.pricingListItem}>
-                  <span>{m.name}</span>
-                  <span style={styles.pricingListPrice}>
-                    {m.price ? `+${m.price} kr/mnd` : "Gratis"}
-                  </span>
-                </div>
-              ))}
+              {modules.filter(m => m.key !== "booking").map(m => {
+                const isEditing = editingPrice?.type === "module" && editingPrice.id === m.id;
+                
+                return (
+                  <div key={m.id} style={styles.pricingListItem}>
+                    <span>{m.name}</span>
+                    {isEditing ? (
+                      <div style={styles.priceEditRow}>
+                        <input
+                          type="number"
+                          min="0"
+                          value={priceInputValue}
+                          onChange={e => setPriceInputValue(e.target.value)}
+                          style={styles.priceInput}
+                          autoFocus
+                          placeholder="0 = gratis"
+                          onKeyDown={e => {
+                            if (e.key === "Enter") {
+                              const val = parseInt(priceInputValue);
+                              updateModulePrice(m.id, isNaN(val) || val === 0 ? null : val);
+                            } else if (e.key === "Escape") {
+                              setEditingPrice(null);
+                            }
+                          }}
+                        />
+                        <button 
+                          style={styles.priceSaveBtn}
+                          onClick={() => {
+                            const val = parseInt(priceInputValue);
+                            updateModulePrice(m.id, isNaN(val) || val === 0 ? null : val);
+                          }}
+                        >
+                          ✓
+                        </button>
+                        <button 
+                          style={styles.priceCancelBtn}
+                          onClick={() => setEditingPrice(null)}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button 
+                        style={styles.priceButton}
+                        onClick={() => {
+                          setEditingPrice({ type: "module", id: m.id });
+                          setPriceInputValue(String(m.price || 0));
+                        }}
+                      >
+                        {m.price ? `+${m.price} kr/mnd` : "Gratis"}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             <div style={styles.modalActions}>
-              <button style={styles.primaryBtn} onClick={() => setShowPricingModal(false)}>
+              <button style={styles.primaryBtn} onClick={() => { setShowPricingModal(false); setEditingPrice(null); }}>
                 Lukk
               </button>
             </div>
@@ -1160,6 +1310,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: "column",
     gap: "0.75rem",
   },
+  pilotNote: {
+    fontSize: "0.85rem",
+    color: "#a855f7",
+    background: "rgba(168,85,247,0.1)",
+    padding: "0.75rem 1rem",
+    borderRadius: "6px",
+    margin: "0 0 0.5rem 0",
+    textAlign: "center",
+  },
   moduleItem: {
     display: "flex",
     justifyContent: "space-between",
@@ -1330,7 +1489,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: "0.9rem",
     fontWeight: "600",
     color: "#888",
-    margin: "1.5rem 0 0.75rem 0",
+    margin: "1.5rem 0 0.5rem 0",
+  },
+  pricingHint: {
+    fontSize: "0.8rem",
+    color: "#666",
+    margin: "0 0 1rem 0",
+  },
+  pricingSubHint: {
+    fontSize: "0.75rem",
+    color: "#a855f7",
+    margin: "0 0 0.5rem 0",
   },
   pricingList: {
     background: "#0a0a0a",
@@ -1340,12 +1509,64 @@ const styles: { [key: string]: React.CSSProperties } = {
   pricingListItem: {
     display: "flex",
     justifyContent: "space-between",
+    alignItems: "center",
     padding: "0.75rem 1rem",
     borderBottom: "1px solid #222",
     fontSize: "0.9rem",
   },
-  pricingListPrice: {
+  pricingItemName: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+  },
+  overrideTag: {
+    fontSize: "0.65rem",
+    padding: "0.15rem 0.4rem",
+    background: "rgba(245,158,11,0.2)",
+    color: "#f59e0b",
+    borderRadius: "4px",
+  },
+  priceButton: {
+    background: "transparent",
+    border: "1px solid #333",
+    borderRadius: "4px",
+    padding: "0.35rem 0.75rem",
     color: "#22c55e",
     fontWeight: "500",
+    cursor: "pointer",
+    fontSize: "0.85rem",
+  },
+  priceEditRow: {
+    display: "flex",
+    gap: "0.25rem",
+    alignItems: "center",
+  },
+  priceInput: {
+    width: "80px",
+    padding: "0.35rem 0.5rem",
+    background: "#111",
+    border: "1px solid #3b82f6",
+    borderRadius: "4px",
+    color: "#fff",
+    fontSize: "0.85rem",
+    textAlign: "right",
+  },
+  priceSaveBtn: {
+    padding: "0.35rem 0.5rem",
+    background: "#22c55e",
+    border: "none",
+    borderRadius: "4px",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: "0.8rem",
+  },
+  priceCancelBtn: {
+    padding: "0.35rem 0.5rem",
+    background: "#333",
+    border: "none",
+    borderRadius: "4px",
+    color: "#888",
+    cursor: "pointer",
+    fontSize: "0.8rem",
   },
 };
