@@ -88,6 +88,7 @@ export default function InvoicesPage() {
   const [settingsForm, setSettingsForm] = useState<Partial<CompanySettings>>({});
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -218,6 +219,35 @@ export default function InvoicesPage() {
       }
     } catch (err) {
       setError("Nettverksfeil");
+    }
+  };
+
+  const sendInvoiceByEmail = async (invoice: Invoice) => {
+    setSendingEmail(invoice.id);
+    setError("");
+    
+    try {
+      const response = await fetch(`/api/invoices/${invoice.id}/send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-secret": password
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        await loadInvoices(password);
+        setSuccess(`Faktura sendt til ${data.sentTo}`);
+        setTimeout(() => setSuccess(""), 5000);
+      } else {
+        setError(data.error || "Kunne ikke sende e-post");
+      }
+    } catch (err) {
+      setError("Nettverksfeil ved sending av e-post");
+    } finally {
+      setSendingEmail(null);
     }
   };
 
@@ -688,13 +718,23 @@ export default function InvoicesPage() {
                       >
                         👁 Vis
                       </button>
+                      {(invoice.status === "draft" || invoice.status === "sent") && (
+                        <button
+                          onClick={() => sendInvoiceByEmail(invoice)}
+                          disabled={sendingEmail === invoice.id}
+                          style={{ ...styles.actionButton, background: "#8b5cf6" }}
+                          title={`Send faktura til ${invoice.organization.contactEmail}`}
+                        >
+                          {sendingEmail === invoice.id ? "Sender..." : "📧 Send e-post"}
+                        </button>
+                      )}
                       {invoice.status === "draft" && (
                         <button
                           onClick={() => updateInvoiceStatus(invoice.id, "sent")}
                           style={styles.actionButton}
-                          title="Marker fakturaen som sendt (send PDF manuelt)"
+                          title="Marker som sendt uten å sende e-post"
                         >
-                          📤 Sendt
+                          📤 Marker sendt
                         </button>
                       )}
                       {(invoice.status === "sent" || invoice.status === "overdue") && (
