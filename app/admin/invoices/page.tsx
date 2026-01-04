@@ -387,9 +387,12 @@ export default function InvoicesPage() {
     <div style={styles.container}>
       {/* Header */}
       <header style={styles.header}>
-        <div>
-          <h1 style={styles.title}>📄 Fakturering</h1>
-          <p style={styles.subtitle}>Administrer fakturaer og betalinger</p>
+        <div style={styles.headerLeft}>
+          <img src="/sportflow-logo.png" alt="SportFlow" style={styles.headerLogo} />
+          <div>
+            <h1 style={styles.title}>Fakturering</h1>
+            <p style={styles.subtitle}>Administrer fakturaer og betalinger</p>
+          </div>
         </div>
         <div style={styles.headerActions}>
           <button onClick={() => router.push("/admin")} style={styles.backButton}>
@@ -1163,6 +1166,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: "1.5rem",
+  },
+  headerLeft: {
+    display: "flex",
+    alignItems: "center",
+    gap: "1rem",
+  },
+  headerLogo: {
+    height: "40px",
+    width: "auto",
   },
   title: {
     fontSize: "1.5rem",

@@ -138,15 +138,22 @@ export default function AdminLoginPage() {
           maxWidth: "400px",
         }}
       >
-        <h1
-          style={{
-            marginBottom: "0.5rem",
-            fontSize: "1.5rem",
-            fontWeight: "600",
-          }}
-        >
-          SportFlow License Admin
-        </h1>
+        <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+          <img 
+            src="/sportflow-logo.png" 
+            alt="SportFlow" 
+            style={{ height: "45px", marginBottom: "1rem" }}
+          />
+          <h1
+            style={{
+              marginBottom: "0.5rem",
+              fontSize: "1.25rem",
+              fontWeight: "600",
+            }}
+          >
+            Lisensadmin
+          </h1>
+        </div>
 
         {/* Steg-indikator */}
         <div style={{ 
