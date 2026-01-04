@@ -33,6 +33,7 @@ export async function GET(request: Request) {
         appVersion: true,
         totalUsers: true,
         totalBookings: true,
+        appUrl: true,
         _count: {
           select: { validations: true }
         }

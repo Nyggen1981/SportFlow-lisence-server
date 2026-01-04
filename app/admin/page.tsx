@@ -37,6 +37,7 @@ type Organization = {
   appVersion: string | null;
   totalUsers: number;
   totalBookings: number;
+  appUrl: string | null;
   stats?: OrganizationStats | null;
 };
 
@@ -130,6 +131,8 @@ export default function AdminDashboard() {
     contactEmail: string;
     contactName: string;
   }>({ name: "", contactEmail: "", contactName: "" });
+  const [fetchingStats, setFetchingStats] = useState<Record<string, boolean>>({});
+  const [editingAppUrl, setEditingAppUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -573,6 +576,67 @@ export default function AdminDashboard() {
         setTimeout(() => setSuccess(""), 3000);
       } else {
         setError("Kunne ikke oppdatere kunde");
+      }
+    } catch (err) {
+      setError("Nettverksfeil");
+    }
+  };
+
+  const fetchStatsForOrg = async (org: Organization) => {
+    if (!password) return;
+    
+    setFetchingStats(prev => ({ ...prev, [org.id]: true }));
+    setError("");
+    
+    try {
+      const response = await fetch("/api/stats/fetch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-secret": password
+        },
+        body: JSON.stringify({ organizationId: org.id })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        await loadOrganizations(password);
+        setSuccess("Statistikk oppdatert!");
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        setError(data.error || "Kunne ikke hente statistikk");
+      }
+    } catch (err) {
+      setError("Nettverksfeil ved henting av statistikk");
+    } finally {
+      setFetchingStats(prev => ({ ...prev, [org.id]: false }));
+    }
+  };
+
+  const updateAppUrl = async (org: Organization, appUrl: string | null) => {
+    if (!password) return;
+    
+    try {
+      const response = await fetch("/api/license/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-secret": password
+        },
+        body: JSON.stringify({
+          slug: org.slug,
+          appUrl: appUrl || null
+        })
+      });
+
+      if (response.ok) {
+        await loadOrganizations(password);
+        setEditingAppUrl(null);
+        setSuccess("App-URL oppdatert");
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        setError("Kunne ikke oppdatere app-URL");
       }
     } catch (err) {
       setError("Nettverksfeil");
@@ -1535,60 +1599,129 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Statistikk-seksjon */}
-                {org.stats && (
+                {/* App URL og Statistikk */}
+                {org.isActive && (
                   <div style={styles.statsSection}>
-                    <h4 style={styles.statsTitle}>
-                      📊 Aktivitetsstatistikk
-                      <span style={styles.statsUpdated}>
-                        Oppdatert: {formatDate(org.stats.lastUpdated)}
-                      </span>
-                    </h4>
-                    <div style={styles.statsGrid}>
-                      <div style={styles.statItem}>
-                        <span style={styles.statValue}>{org.stats.totalUsers}</span>
-                        <span style={styles.statLabel}>Brukere</span>
-                      </div>
-                      <div style={styles.statItem}>
-                        <span style={styles.statValue}>{org.stats.activeUsers}</span>
-                        <span style={styles.statLabel}>Aktive (30d)</span>
-                      </div>
-                      <div style={styles.statItem}>
-                        <span style={styles.statValue}>{org.stats.totalFacilities}</span>
-                        <span style={styles.statLabel}>Fasiliteter</span>
-                      </div>
-                      <div style={styles.statItem}>
-                        <span style={styles.statValue}>{org.stats.totalCategories}</span>
-                        <span style={styles.statLabel}>Kategorier</span>
-                      </div>
-                      <div style={styles.statItem}>
-                        <span style={styles.statValue}>{org.stats.totalRoles}</span>
-                        <span style={styles.statLabel}>Roller</span>
-                      </div>
-                      <div style={styles.statItem}>
-                        <span style={styles.statValue}>{org.stats.totalBookings}</span>
-                        <span style={styles.statLabel}>Bookinger</span>
-                      </div>
-                      <div style={styles.statItem}>
-                        <span style={styles.statValue}>{org.stats.bookingsThisMonth}</span>
-                        <span style={styles.statLabel}>Denne mnd</span>
-                      </div>
-                      <div style={styles.statItem}>
-                        <span style={styles.statValue}>{org.stats.pendingBookings}</span>
-                        <span style={styles.statLabel}>Ventende</span>
-                      </div>
+                    <div style={styles.statsHeader}>
+                      <h4 style={styles.statsTitle}>
+                        📊 Aktivitetsstatistikk
+                        {org.stats && (
+                          <span style={styles.statsUpdated}>
+                            Oppdatert: {formatDate(org.stats.lastUpdated)}
+                          </span>
+                        )}
+                      </h4>
+                      {org.appUrl && (
+                        <button
+                          onClick={() => fetchStatsForOrg(org)}
+                          disabled={fetchingStats[org.id]}
+                          style={styles.refreshButton}
+                        >
+                          {fetchingStats[org.id] ? "Henter..." : "🔄 Oppdater"}
+                        </button>
+                      )}
                     </div>
-                    {org.stats.lastUserLogin && (
-                      <p style={styles.lastLogin}>
-                        Siste innlogging: {formatDate(org.stats.lastUserLogin)}
+
+                    {/* App URL konfigurasjon */}
+                    <div style={styles.appUrlSection}>
+                      <span style={styles.appUrlLabel}>App-URL:</span>
+                      {editingAppUrl === org.id ? (
+                        <div style={styles.appUrlEditRow}>
+                          <input
+                            type="url"
+                            placeholder="https://minapp.vercel.app"
+                            defaultValue={org.appUrl || ""}
+                            style={styles.appUrlInput}
+                            id={`appUrl-${org.id}`}
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => {
+                              const input = document.getElementById(`appUrl-${org.id}`) as HTMLInputElement;
+                              updateAppUrl(org, input.value);
+                            }}
+                            style={styles.appUrlSaveButton}
+                          >
+                            Lagre
+                          </button>
+                          <button
+                            onClick={() => setEditingAppUrl(null)}
+                            style={styles.appUrlCancelButton}
+                          >
+                            Avbryt
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={styles.appUrlDisplay}>
+                          <span style={styles.appUrlValue}>
+                            {org.appUrl || <em style={{ color: "#737373" }}>Ikke satt</em>}
+                          </span>
+                          <button
+                            onClick={() => setEditingAppUrl(org.id)}
+                            style={styles.appUrlEditButton}
+                          >
+                            {org.appUrl ? "Endre" : "Sett"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {org.stats ? (
+                      <>
+                        <div style={styles.statsGrid}>
+                          <div style={styles.statItem}>
+                            <span style={styles.statValue}>{org.stats.totalUsers}</span>
+                            <span style={styles.statLabel}>Brukere</span>
+                          </div>
+                          <div style={styles.statItem}>
+                            <span style={styles.statValue}>{org.stats.activeUsers}</span>
+                            <span style={styles.statLabel}>Aktive (30d)</span>
+                          </div>
+                          <div style={styles.statItem}>
+                            <span style={styles.statValue}>{org.stats.totalFacilities}</span>
+                            <span style={styles.statLabel}>Fasiliteter</span>
+                          </div>
+                          <div style={styles.statItem}>
+                            <span style={styles.statValue}>{org.stats.totalCategories}</span>
+                            <span style={styles.statLabel}>Kategorier</span>
+                          </div>
+                          <div style={styles.statItem}>
+                            <span style={styles.statValue}>{org.stats.totalRoles}</span>
+                            <span style={styles.statLabel}>Roller</span>
+                          </div>
+                          <div style={styles.statItem}>
+                            <span style={styles.statValue}>{org.stats.totalBookings}</span>
+                            <span style={styles.statLabel}>Bookinger</span>
+                          </div>
+                          <div style={styles.statItem}>
+                            <span style={styles.statValue}>{org.stats.bookingsThisMonth}</span>
+                            <span style={styles.statLabel}>Denne mnd</span>
+                          </div>
+                          <div style={styles.statItem}>
+                            <span style={styles.statValue}>{org.stats.pendingBookings}</span>
+                            <span style={styles.statLabel}>Ventende</span>
+                          </div>
+                        </div>
+                        {org.stats.lastUserLogin && (
+                          <p style={styles.lastLogin}>
+                            Siste innlogging: {formatDate(org.stats.lastUserLogin)}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p style={styles.noStatsText}>
+                        {org.appUrl 
+                          ? "Klikk \"Oppdater\" for å hente statistikk fra appen."
+                          : "Sett app-URL for å kunne hente statistikk."}
                       </p>
                     )}
                   </div>
                 )}
 
-                {!org.stats && org.isActive && (
+                {!org.isActive && (
                   <div style={styles.noStatsSection}>
                     <p style={styles.noStatsText}>
-                      📊 Ingen statistikk mottatt ennå. SportFlow-appen må konfigureres til å sende statistikk.
+                      📊 Statistikk er ikke tilgjengelig for inaktive organisasjoner.
                     </p>
                   </div>
                 )}
@@ -2394,7 +2527,94 @@ const styles: { [key: string]: React.CSSProperties } = {
   noStatsText: {
     fontSize: "0.85rem",
     color: "#737373",
-    margin: 0,
+    margin: "0.75rem 0 0 0",
+    textAlign: "center",
+  },
+  statsHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "0.75rem",
+  },
+  refreshButton: {
+    padding: "0.4rem 0.75rem",
+    background: "#3b82f6",
+    border: "none",
+    borderRadius: "4px",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: "0.8rem",
+    fontWeight: "500",
+  },
+  appUrlSection: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    marginBottom: "0.75rem",
+    padding: "0.5rem 0.75rem",
+    background: "rgba(59, 130, 246, 0.1)",
+    borderRadius: "6px",
+    flexWrap: "wrap",
+  },
+  appUrlLabel: {
+    fontSize: "0.8rem",
+    color: "#a3a3a3",
+    fontWeight: "500",
+  },
+  appUrlDisplay: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    flex: 1,
+  },
+  appUrlValue: {
+    fontSize: "0.85rem",
+    color: "#60a5fa",
+    flex: 1,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  appUrlEditButton: {
+    padding: "0.25rem 0.5rem",
+    background: "transparent",
+    border: "none",
+    color: "#3b82f6",
+    cursor: "pointer",
+    fontSize: "0.75rem",
+  },
+  appUrlEditRow: {
+    display: "flex",
+    gap: "0.5rem",
+    flex: 1,
+    alignItems: "center",
+  },
+  appUrlInput: {
+    flex: 1,
+    padding: "0.4rem 0.5rem",
+    background: "#0a0a0a",
+    border: "1px solid #333",
+    borderRadius: "4px",
+    color: "#fff",
+    fontSize: "0.85rem",
+  },
+  appUrlSaveButton: {
+    padding: "0.4rem 0.75rem",
+    background: "#22c55e",
+    border: "none",
+    borderRadius: "4px",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: "0.8rem",
+  },
+  appUrlCancelButton: {
+    padding: "0.4rem 0.75rem",
+    background: "transparent",
+    border: "1px solid #333",
+    borderRadius: "4px",
+    color: "#737373",
+    cursor: "pointer",
+    fontSize: "0.8rem",
     textAlign: "center",
   },
 };
