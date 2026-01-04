@@ -590,10 +590,7 @@ export default function AdminDashboard() {
           <p style={styles.subtitle}>{organizations.length} organisasjoner</p>
         </div>
         <div style={styles.headerActions}>
-          <button onClick={() => {
-            setShowInvoicesPanel(true);
-            loadInvoices(password);
-          }} style={styles.pricingButton}>
+          <button onClick={() => router.push("/admin/invoices")} style={styles.pricingButton}>
             📄 Fakturaer
           </button>
           <button onClick={() => setShowPricingPanel(true)} style={styles.pricingButton}>

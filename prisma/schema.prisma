@@ -185,3 +185,45 @@ model Invoice {
   @@index([periodYear, periodMonth])
   @@index([dueDate])
 }
+
+// Bedriftsinformasjon for fakturaer og admin
+model CompanySettings {
+  id              String   @id @default(cuid())
+  
+  // Bedriftsinformasjon
+  companyName     String                            // "SportFlow AS"
+  orgNumber       String?                           // "999 888 777"
+  vatNumber       String?                           // MVA-nummer
+  
+  // Kontaktinformasjon
+  email           String?
+  phone           String?
+  website         String?
+  
+  // Adresse
+  address         String?
+  postalCode      String?
+  city            String?
+  country         String   @default("Norge")
+  
+  // Bankinformasjon
+  bankAccount     String?                           // Kontonummer
+  bankName        String?
+  iban            String?                           // For internasjonale betalinger
+  swift           String?
+  
+  // Logo (URL eller base64)
+  logoUrl         String?
+  
+  // Faktura-innstillinger
+  invoicePrefix   String   @default("INV")          // Prefix for fakturanummer
+  defaultDueDays  Int      @default(14)             // Standard forfallsdager
+  vatRate         Int      @default(0)              // MVA-sats i prosent (0 = ingen MVA)
+  
+  // Tekster for fakturaer
+  invoiceNote     String?                           // Standard notat på fakturaer
+  paymentTerms    String?                           // Betalingsbetingelser
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
