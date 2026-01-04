@@ -2409,6 +2409,5 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: "#737373",
     margin: "0.75rem 0 0 0",
     textAlign: "center",
-    textAlign: "center",
   },
 };
