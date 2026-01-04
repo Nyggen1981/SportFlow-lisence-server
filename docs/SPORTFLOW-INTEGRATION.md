@@ -6,7 +6,7 @@ Dette dokumentet beskriver endringene i lisensserveren som påvirker SportFlow B
 
 ### 1. Modulbasert lisenssystem
 - Booking er **ikke lenger en modul** - det er kjernefunksjonalitet som alltid er inkludert (unntatt inaktiv lisens)
-- Tilleggsmoduler kan aktiveres per organisasjon (f.eks. "Pris & Betaling")
+- Tilleggsmoduler kan aktiveres per organisasjon (f.eks. "Betalingsmodul")
 - Moduler har egne priser som legges til base-prisen
 
 ### 2. Prising
@@ -130,7 +130,7 @@ GET /api/license/pricing?licenseKey=clxxxxxxxxxxxx
       },
       {
         "key": "pricing",
-        "name": "Pris & Betaling",
+        "name": "Betalingsmodul",
         "price": 99,
         "isStandard": false
       }
@@ -154,9 +154,9 @@ GET /api/license/pricing?licenseKey=clxxxxxxxxxxxx
 ### Tilleggsmoduler
 Disse kan aktiveres/deaktiveres per organisasjon:
 
-#### Pris & Betaling
+#### Betalingsmodul
 - **Key:** `pricing`
-- **Beskrivelse:** Pris og betalingshåndtering for bookingene
+- **Beskrivelse:** Betalingshåndtering for bookingene
 - **Standard pris:** 99 kr/mnd (kan endres i admin-panel)
 
 ---
@@ -199,7 +199,7 @@ const data = await response.json();
 if (data.valid && data.status === "active") {
   // Sjekk om pricing-modulen er aktivert
   if (data.modules.pricing) {
-    // Vis pris & betalings-funksjonalitet
+    // Vis betalingsmodul-funksjonalitet
     enablePricingFeatures();
   }
   
@@ -363,7 +363,7 @@ export default function AdminDashboard() {
         <h2>Tilgjengelige funksjoner</h2>
         <p>✅ Booking (alltid inkludert)</p>
         {license.modules.pricing && (
-          <p>✅ Pris & Betaling</p>
+          <p>✅ Betalingsmodul</p>
         )}
       </div>
     </div>

@@ -68,8 +68,8 @@ async function main() {
     update: {},
     create: {
       key: "pricing",
-      name: "Pris & Betaling",
-      description: "Pris og betalingshåndtering for bookingene",
+      name: "Betalingsmodul",
+      description: "Betalingshåndtering for bookingene",
       isStandard: false,
       isActive: true,
       price: 99 // kr/mnd ekstra

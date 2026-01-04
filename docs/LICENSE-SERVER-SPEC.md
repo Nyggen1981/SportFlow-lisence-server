@@ -174,7 +174,7 @@ Henter detaljert prisinformasjon for en organisasjon.
       },
       {
         "key": "pricing",
-        "name": "Pris & Betaling",
+        "name": "Betalingsmodul",
         "price": 99,
         "isStandard": false
       }
@@ -188,7 +188,7 @@ Henter detaljert prisinformasjon for en organisasjon.
 ### Moduler
 
 - **Booking:** Kjernefunksjonalitet, alltid inkludert (unntatt inaktiv lisens). Ikke en modul.
-- **Tilleggsmoduler:** Kan aktiveres/deaktiveres per organisasjon (f.eks. "Pris & Betaling")
+- **Tilleggsmoduler:** Kan aktiveres/deaktiveres per organisasjon (f.eks. "Betalingsmodul")
 
 ---
 

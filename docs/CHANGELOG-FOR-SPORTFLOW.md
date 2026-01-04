@@ -4,7 +4,7 @@
 
 ### 1. Modulbasert lisenssystem
 - **Booking er ikke lenger en modul** - det er kjernefunksjonalitet som alltid er inkludert (unntatt inaktiv lisens)
-- Tilleggsmoduler kan aktiveres per organisasjon (f.eks. "Pris & Betaling")
+- Tilleggsmoduler kan aktiveres per organisasjon (f.eks. "Betalingsmodul")
 - Moduler har egne priser som legges til base-prisen
 
 ### 2. Prising
@@ -67,7 +67,7 @@ const data = await response.json();
 ```typescript
 // Sjekk om pricing-modulen er aktivert
 if (licenseData.modules?.pricing) {
-  // Vis pris & betalings-funksjonalitet
+  // Vis betalingsmodul-funksjonalitet
   enablePricingFeatures();
 }
 

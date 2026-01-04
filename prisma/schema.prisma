@@ -99,7 +99,7 @@ model AdminUser {
 model Module {
   id          String   @id @default(cuid())
   key         String   @unique                  // "booking", "pricing", "analytics", etc.
-  name        String                            // "Booking", "Pris & Betaling", etc.
+  name        String                            // "Booking", "Betalingsmodul", etc.
   description String?
   isStandard  Boolean  @default(false)          // Om modulen er standard (alltid inkludert)
   isActive    Boolean  @default(true)           // Om modulen er tilgjengelig for salg
