@@ -267,7 +267,7 @@ export default function AdminDashboard() {
     });
   };
 
-  const getStatusInfo = (org: Organization) => {
+  const getStatusInfo = (org: Organization): { label: string; color: string; bg: string; daysLeft?: number } => {
     if (!org.isActive) return { label: "Inaktiv", color: "#6b7280", bg: "rgba(107,114,128,0.15)" };
     const daysLeft = Math.ceil((new Date(org.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     if (daysLeft < 0) return { label: "Utløpt", color: "#ef4444", bg: "rgba(239,68,68,0.15)" };
