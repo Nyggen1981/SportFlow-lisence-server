@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { calculateMonthlyPrice, getLicensePrice, LICENSE_TYPES, LicenseType } from "@/lib/license-config";
+import { calculateMonthlyPrice, calculateModulePrice, getLicensePrice, LICENSE_TYPES, LicenseType } from "@/lib/license-config";
 
 function isAuthorized(request: Request): boolean {
   const adminSecretHeader = request.headers.get("x-admin-secret") ?? "";
@@ -114,17 +114,17 @@ export async function POST(request: Request) {
     });
 
     const basePrice = getLicensePrice(licenseType, licenseTypePrice?.price);
-    const modulePrice = org.modules.reduce((sum, orgModule) => {
-      return sum + (orgModule.module.price ?? 0);
-    }, 0);
+    // Bruk calculateModulePrice som gir 0 for pilotkunder
+    const modulePrice = calculateModulePrice(licenseType, org.modules);
     const totalAmount = calculateMonthlyPrice(licenseType, org.modules, basePrice);
 
-    // Lagre modul-informasjon som JSON
+    // Lagre modul-informasjon som JSON (vis faktisk pris eller 0 for pilot)
+    const isPilot = licenseType === "pilot";
     const modulesInfo = JSON.stringify(
       org.modules.map(orgModule => ({
         key: orgModule.module.key,
         name: orgModule.module.name,
-        price: orgModule.module.price ?? 0
+        price: isPilot ? 0 : (orgModule.module.price ?? 0)
       }))
     );
 

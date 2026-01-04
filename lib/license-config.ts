@@ -118,6 +118,11 @@ export function calculateMonthlyPrice(
   // Base-pris fra lisens-type (eller override)
   const basePrice = basePriceOverride ?? getLicensePrice(licenseType);
   
+  // Pilotkunder får gratis tilleggsmoduler
+  if (licenseType === "pilot") {
+    return basePrice;
+  }
+  
   if (!activeModules || activeModules.length === 0) {
     return basePrice;
   }
@@ -129,6 +134,26 @@ export function calculateMonthlyPrice(
   }, 0);
   
   return basePrice + modulePrice;
+}
+
+// Beregn modulpris (returnerer 0 for pilotkunder)
+export function calculateModulePrice(
+  licenseType: LicenseType,
+  activeModules: Array<{ module: { price: number | null } }> | undefined
+): number {
+  // Pilotkunder får gratis tilleggsmoduler
+  if (licenseType === "pilot") {
+    return 0;
+  }
+  
+  if (!activeModules || activeModules.length === 0) {
+    return 0;
+  }
+  
+  return activeModules.reduce((sum, orgModule) => {
+    const price = orgModule.module.price;
+    return sum + (price ?? 0);
+  }, 0);
 }
 
 

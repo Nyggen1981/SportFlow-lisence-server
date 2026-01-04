@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { calculateMonthlyPrice, getLicensePrice, LICENSE_TYPES, LicenseType } from "@/lib/license-config";
+import { calculateMonthlyPrice, calculateModulePrice, getLicensePrice, LICENSE_TYPES, LicenseType } from "@/lib/license-config";
 
 // GET: Hent prisinformasjon for en organisasjon (brukes av booking-appen)
 export async function GET(request: Request) {
@@ -35,6 +35,7 @@ export async function GET(request: Request) {
     }
 
     const licenseType = org.licenseType as LicenseType;
+    const isPilot = licenseType === "pilot";
     
     // Hent pris-override fra databasen hvis den finnes
     const licenseTypePrice = await prisma.licenseTypePrice.findUnique({
@@ -42,17 +43,15 @@ export async function GET(request: Request) {
     });
     
     const basePrice = getLicensePrice(licenseType, licenseTypePrice?.price);
-    const modulePrice = org.modules.reduce((sum, orgModule) => {
-      const price = orgModule.module.price;
-      return sum + (price ?? 0);
-    }, 0);
+    // Bruk calculateModulePrice som gir 0 for pilotkunder
+    const modulePrice = calculateModulePrice(licenseType, org.modules);
     const totalMonthlyPrice = calculateMonthlyPrice(licenseType, org.modules, basePrice);
 
-    // Bygg detaljert prisoversikt
+    // Bygg detaljert prisoversikt (vis 0 for moduler på pilotkunder)
     const moduleList = org.modules.map(orgModule => ({
       key: orgModule.module.key,
       name: orgModule.module.name,
-      price: orgModule.module.price ?? 0,
+      price: isPilot ? 0 : (orgModule.module.price ?? 0),
       isStandard: orgModule.module.isStandard
     }));
     

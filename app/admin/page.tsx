@@ -1322,16 +1322,21 @@ export default function AdminDashboard() {
                           )} kr/mnd
                         </span>
                       </div>
-                      {orgModules[org.id]?.filter(om => om.isActive && om.module.price !== null).map(orgModule => (
-                        <div key={orgModule.id} style={styles.pricingRow}>
-                          <span style={styles.pricingLabel}>
-                            {orgModule.module.name}:
-                          </span>
-                          <span style={styles.pricingValue}>
-                            {orgModule.module.price ?? 0} kr/mnd
-                          </span>
-                        </div>
-                      ))}
+                      {orgModules[org.id]?.filter(om => om.isActive && om.module.price !== null).map(orgModule => {
+                        const isPilot = org.licenseType === "pilot";
+                        const modulePrice = isPilot ? 0 : (orgModule.module.price ?? 0);
+                        return (
+                          <div key={orgModule.id} style={styles.pricingRow}>
+                            <span style={styles.pricingLabel}>
+                              {orgModule.module.name}:
+                            </span>
+                            <span style={styles.pricingValue}>
+                              {modulePrice} kr/mnd
+                              {isPilot && <span style={{ color: "#a855f7", marginLeft: "0.5rem", fontSize: "0.7rem" }}>(gratis for pilot)</span>}
+                            </span>
+                          </div>
+                        );
+                      })}
                       <div style={styles.pricingTotal}>
                         <span style={styles.pricingTotalLabel}>Totalt per måned:</span>
                         <span style={styles.pricingTotalValue}>
