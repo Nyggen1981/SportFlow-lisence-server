@@ -140,3 +140,4 @@ Test med din lisensnøkkel:
 GET https://sportflow-lisence-server.vercel.app/api/license/pricing?licenseKey=DIN_LICENSE_KEY
 ```
 
+

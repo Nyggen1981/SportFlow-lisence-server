@@ -15,6 +15,7 @@ type Organization = {
   createdAt: string;
   activatedAt: string | null;
   expiresAt: string;
+  graceEndsAt: string | null;
   isActive: boolean;
   isSuspended: boolean;
   lastHeartbeat: string | null;
@@ -58,6 +59,7 @@ export default function AdminDashboard() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [editingOrg, setEditingOrg] = useState<string | null>(null);
   const [pendingStatus, setPendingStatus] = useState<"inactive" | "pilot" | "free" | "standard" | null>(null);
+  const [editingGracePeriod, setEditingGracePeriod] = useState<string | null>(null);
   const [newOrg, setNewOrg] = useState<NewOrgForm>({
     name: "",
     slug: "",
@@ -367,6 +369,34 @@ export default function AdminDashboard() {
         setEditingOrg(null);
       } else {
         setError("Kunne ikke oppdatere status");
+      }
+    } catch (err) {
+      setError("Nettverksfeil");
+    }
+  };
+
+  const updateGraceEndsAt = async (org: Organization, graceEndsAt: string | null) => {
+    try {
+      const updates: any = {
+        slug: org.slug,
+        graceEndsAt: graceEndsAt || null
+      };
+
+      const response = await fetch("/api/license/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-secret": password
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (response.ok) {
+        await loadOrganizations(password);
+        setSuccess("Grace period oppdatert");
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        setError("Kunne ikke oppdatere grace period");
       }
     } catch (err) {
       setError("Nettverksfeil");
@@ -977,31 +1007,69 @@ export default function AdminDashboard() {
                   )}
 
                   {status !== "inactive" && !isEditing && (
-                    <p style={styles.expiresText}>
-                      Utløper: {formatDate(org.expiresAt)}
-                      <button
-                        onClick={() => {
-                          setEditingOrg(org.id);
-                          setPendingStatus(status);
-                        }}
-                        style={styles.editDateButton}
-                      >
-                        Endre dato
-                      </button>
-                    </p>
+                    <>
+                      <p style={styles.expiresText}>
+                        Utløper: {formatDate(org.expiresAt)}
+                        <button
+                          onClick={() => {
+                            setEditingOrg(org.id);
+                            setPendingStatus(status);
+                          }}
+                          style={styles.editDateButton}
+                        >
+                          Endre dato
+                        </button>
+                      </p>
+                      <p style={styles.expiresText}>
+                        Grace period: {org.graceEndsAt ? formatDate(org.graceEndsAt) : "Ikke satt"}
+                        {editingGracePeriod === org.id ? (
+                          <>
+                            <input
+                              type="date"
+                              defaultValue={org.graceEndsAt ? formatDateForInput(org.graceEndsAt) : ""}
+                              style={{ ...styles.dateInput, marginLeft: "8px", marginRight: "8px" }}
+                              id={`grace-${org.id}`}
+                            />
+                            <button
+                              onClick={() => {
+                                const dateInput = document.getElementById(`grace-${org.id}`) as HTMLInputElement;
+                                const newDate = dateInput.value ? new Date(dateInput.value).toISOString() : null;
+                                updateGraceEndsAt(org, newDate);
+                                setEditingGracePeriod(null);
+                              }}
+                              style={{ ...styles.editDateButton, background: "#10b981", marginRight: "4px" }}
+                            >
+                              Lagre
+                            </button>
+                            <button
+                              onClick={() => {
+                                updateGraceEndsAt(org, null);
+                                setEditingGracePeriod(null);
+                              }}
+                              style={{ ...styles.editDateButton, background: "#ef4444", marginRight: "4px" }}
+                            >
+                              Fjern
+                            </button>
+                            <button
+                              onClick={() => setEditingGracePeriod(null)}
+                              style={styles.editDateButton}
+                            >
+                              Avbryt
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setEditingGracePeriod(org.id)}
+                            style={styles.editDateButton}
+                          >
+                            {org.graceEndsAt ? "Endre" : "Sett"}
+                          </button>
+                        )}
+                      </p>
+                    </>
                   )}
                 </div>
 
-                {/* Stats */}
-                {org.lastHeartbeat && (
-                  <div style={styles.statsRow}>
-                    <span style={styles.stat}>👥 {org.totalUsers} brukere</span>
-                    <span style={styles.stat}>📅 {org.totalBookings} bookinger</span>
-                    <span style={styles.stat}>
-                      🕐 Sist aktiv: {new Date(org.lastHeartbeat).toLocaleDateString("nb-NO")}
-                    </span>
-                  </div>
-                )}
               </div>
             );
           })
@@ -1613,16 +1681,5 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: "#3b82f6",
     cursor: "pointer",
     fontSize: "0.8rem",
-  },
-  statsRow: {
-    display: "flex",
-    gap: "1rem",
-    paddingTop: "0.75rem",
-    borderTop: "1px solid #1f1f1f",
-    flexWrap: "wrap",
-  },
-  stat: {
-    fontSize: "0.8rem",
-    color: "#525252",
   },
 };

@@ -26,6 +26,7 @@ export async function GET(request: Request) {
         createdAt: true,
         activatedAt: true,
         expiresAt: true,
+        graceEndsAt: true,
         isActive: true,
         isSuspended: true,
         lastHeartbeat: true,

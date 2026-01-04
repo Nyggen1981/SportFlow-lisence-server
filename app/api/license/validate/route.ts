@@ -73,16 +73,26 @@ export async function POST(request: Request) {
   }
 
   // Oppdater statistikk og heartbeat
+  const updateData: any = {
+    lastHeartbeat: now,
+    appVersion: appVersion || org.appVersion,
+    // Sett activatedAt ved første validering
+    activatedAt: org.activatedAt ?? now
+  };
+
+  // Oppdater statistikk hvis stats er sendt (inkludert hvis verdiene er 0)
+  if (stats !== undefined) {
+    if (stats.userCount !== undefined) {
+      updateData.totalUsers = stats.userCount;
+    }
+    if (stats.bookingCount !== undefined) {
+      updateData.totalBookings = stats.bookingCount;
+    }
+  }
+
   await prisma.organization.update({
     where: { id: org.id },
-    data: {
-      lastHeartbeat: now,
-      appVersion: appVersion || org.appVersion,
-      totalUsers: stats?.userCount ?? org.totalUsers,
-      totalBookings: stats?.bookingCount ?? org.totalBookings,
-      // Sett activatedAt ved første validering
-      activatedAt: org.activatedAt ?? now
-    }
+    data: updateData
   });
 
   const licenseType = org.licenseType as LicenseType;

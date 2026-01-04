@@ -389,3 +389,4 @@ LICENSE_KEY="clxxxxxxxxxxxx"  # Fra lisensserveren
 
 Hvis du har spørsmål om integrasjonen, kontakt lisensserver-administratoren.
 
+

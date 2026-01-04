@@ -13,6 +13,7 @@ type UpdateBody = {
   isSuspended?: boolean;
   suspendReason?: string;
   expiresAt?: string | null;
+  graceEndsAt?: string | null;
   maxUsers?: number | null;
   maxResources?: number | null;
   notes?: string;
@@ -91,6 +92,21 @@ export async function POST(request: Request) {
     data.expiresAt = parsed;
   }
 
+  // Håndter graceEndsAt
+  if (updates.graceEndsAt === null) {
+    // Tillat å sette graceEndsAt til null for å fjerne grace period
+    data.graceEndsAt = null;
+  } else if (typeof updates.graceEndsAt === "string") {
+    const parsed = new Date(updates.graceEndsAt);
+    if (Number.isNaN(parsed.getTime())) {
+      return NextResponse.json(
+        { error: "graceEndsAt must be a valid ISO date string" },
+        { status: 400 }
+      );
+    }
+    data.graceEndsAt = parsed;
+  }
+
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
@@ -110,7 +126,8 @@ export async function POST(request: Request) {
         licenseType: org.licenseType,
         isActive: org.isActive,
         isSuspended: org.isSuspended,
-        expiresAt: org.expiresAt.toISOString()
+        expiresAt: org.expiresAt.toISOString(),
+        graceEndsAt: org.graceEndsAt?.toISOString() || null
       }
     });
   } catch (error: any) {
