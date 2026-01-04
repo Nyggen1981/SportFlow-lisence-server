@@ -51,6 +51,7 @@ model Organization {
   // Relasjoner
   validations   LicenseValidation[]
   modules       OrganizationModule[]
+  invoices      Invoice[]
   
   @@index([licenseKey])
   @@index([isActive, expiresAt])
@@ -140,4 +141,47 @@ model LicenseTypePrice {
   updatedAt   DateTime @updatedAt
   
   @@index([licenseType])
+}
+
+// Fakturaer for organisasjoner
+model Invoice {
+  id             String   @id @default(cuid())
+  invoiceNumber  String   @unique                // Unikt fakturanummer (f.eks. "INV-2025-001")
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Periode som faktureres
+  periodMonth    Int                              // 1-12
+  periodYear     Int                              // f.eks. 2025
+  
+  // Beløp
+  amount         Int                              // Total beløp i kr (inkl. mva hvis aktuelt)
+  basePrice      Int                              // Base-pris for lisens-type
+  modulePrice    Int                              // Sum av modul-priser
+  vatAmount      Int      @default(0)             // MVA (hvis aktuelt)
+  
+  // Status: "draft", "sent", "paid", "overdue", "cancelled"
+  status         String   @default("draft")
+  
+  // Datoer
+  invoiceDate    DateTime @default(now())         // Når fakturaen ble opprettet
+  dueDate        DateTime                         // Forfallsdato
+  paidDate       DateTime?                        // Når fakturaen ble betalt
+  
+  // Detaljer om hva som faktureres
+  licenseType    String                           // Lisens-type ved fakturering
+  licenseTypeName String                         // Navn på lisens-type
+  modules        String?                          // JSON-string med moduler som ble fakturert
+  
+  // Notater
+  notes          String?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([invoiceNumber])
+  @@index([status])
+  @@index([periodYear, periodMonth])
+  @@index([dueDate])
 }

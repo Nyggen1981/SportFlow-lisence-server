@@ -41,6 +41,35 @@ type OrganizationModule = {
   module: Module;
 };
 
+type Invoice = {
+  id: string;
+  invoiceNumber: string;
+  organizationId: string;
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+    contactEmail: string;
+    contactName: string | null;
+  };
+  periodMonth: number;
+  periodYear: number;
+  amount: number;
+  basePrice: number;
+  modulePrice: number;
+  vatAmount: number;
+  status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
+  invoiceDate: string;
+  dueDate: string;
+  paidDate: string | null;
+  licenseType: string;
+  licenseTypeName: string;
+  modules: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 type NewOrgForm = {
   name: string;
   slug: string;
@@ -73,6 +102,12 @@ export default function AdminDashboard() {
   const [showPricingPanel, setShowPricingPanel] = useState(false);
   const [licenseTypePrices, setLicenseTypePrices] = useState<Record<string, { price: number; isOverride: boolean }>>({});
   const [editingPrice, setEditingPrice] = useState<{ type: "module" | "licenseType"; id: string; currentPrice: number | null } | null>(null);
+  const [showInvoicesPanel, setShowInvoicesPanel] = useState(false);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [showCreateInvoice, setShowCreateInvoice] = useState(false);
+  const [selectedOrgForInvoice, setSelectedOrgForInvoice] = useState<string | null>(null);
+  const [invoicePeriod, setInvoicePeriod] = useState({ month: new Date().getMonth() + 1, year: new Date().getFullYear() });
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -170,6 +205,85 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error("Kunne ikke laste lisens-type priser:", err);
+    }
+  };
+
+  const loadInvoices = async (adminPassword: string, organizationId?: string) => {
+    setLoadingInvoices(true);
+    try {
+      const url = organizationId 
+        ? `/api/invoices/list?organizationId=${organizationId}`
+        : "/api/invoices/list";
+      const response = await fetch(url, {
+        headers: { "x-admin-secret": adminPassword }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setInvoices(data.invoices || []);
+      } else {
+        setError("Kunne ikke laste fakturaer");
+      }
+    } catch (err) {
+      setError("Nettverksfeil ved lasting av fakturaer");
+    } finally {
+      setLoadingInvoices(false);
+    }
+  };
+
+  const createInvoice = async (organizationId: string, month: number, year: number) => {
+    try {
+      const response = await fetch("/api/invoices/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-secret": password
+        },
+        body: JSON.stringify({
+          organizationId,
+          periodMonth: month,
+          periodYear: year
+        })
+      });
+
+      if (response.ok) {
+        await loadInvoices(password);
+        setShowCreateInvoice(false);
+        setSelectedOrgForInvoice(null);
+        setSuccess("Faktura opprettet");
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        const data = await response.json();
+        setError(data.error || "Kunne ikke opprette faktura");
+      }
+    } catch (err) {
+      setError("Nettverksfeil");
+    }
+  };
+
+  const updateInvoiceStatus = async (invoiceId: string, status: string, paidDate?: string | null) => {
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-secret": password
+        },
+        body: JSON.stringify({
+          status,
+          paidDate: paidDate || null
+        })
+      });
+
+      if (response.ok) {
+        await loadInvoices(password);
+        setSuccess("Faktura oppdatert");
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        setError("Kunne ikke oppdatere faktura");
+      }
+    } catch (err) {
+      setError("Nettverksfeil");
     }
   };
 
@@ -476,6 +590,12 @@ export default function AdminDashboard() {
           <p style={styles.subtitle}>{organizations.length} organisasjoner</p>
         </div>
         <div style={styles.headerActions}>
+          <button onClick={() => {
+            setShowInvoicesPanel(true);
+            loadInvoices(password);
+          }} style={styles.pricingButton}>
+            📄 Fakturaer
+          </button>
           <button onClick={() => setShowPricingPanel(true)} style={styles.pricingButton}>
             💰 Priser
           </button>
@@ -670,6 +790,211 @@ export default function AdminDashboard() {
             <div style={styles.modalActions}>
               <button
                 onClick={() => setShowPricingPanel(false)}
+                style={styles.cancelButton}
+              >
+                Lukk
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fakturaer Panel */}
+      {showInvoicesPanel && (
+        <div style={styles.modalOverlay} onClick={() => setShowInvoicesPanel(false)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>📄 Fakturaer</h2>
+              <button
+                onClick={() => setShowInvoicesPanel(false)}
+                style={styles.closeButton}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={styles.invoiceSection}>
+              <div style={styles.invoiceHeader}>
+                <button
+                  onClick={() => {
+                    setShowCreateInvoice(true);
+                    setSelectedOrgForInvoice(null);
+                  }}
+                  style={styles.addButton}
+                >
+                  + Opprett faktura
+                </button>
+                {loadingInvoices && <span style={styles.loadingText}>Laster...</span>}
+              </div>
+
+              {showCreateInvoice && (
+                <div style={styles.createInvoiceForm}>
+                  <h3 style={styles.createInvoiceTitle}>Opprett ny faktura</h3>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Organisasjon</label>
+                    <select
+                      value={selectedOrgForInvoice || ""}
+                      onChange={(e) => setSelectedOrgForInvoice(e.target.value)}
+                      style={styles.input}
+                      required
+                    >
+                      <option value="">Velg organisasjon</option>
+                      {organizations
+                        .filter(org => org.licenseType !== "inactive")
+                        .map(org => (
+                          <option key={org.id} value={org.id}>
+                            {org.name} ({org.licenseType})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Periode</label>
+                    <div style={styles.dateInputRow}>
+                      <select
+                        value={invoicePeriod.month}
+                        onChange={(e) => setInvoicePeriod({ ...invoicePeriod, month: parseInt(e.target.value) })}
+                        style={styles.input}
+                      >
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                          <option key={month} value={month}>
+                            {new Date(2000, month - 1).toLocaleDateString("nb-NO", { month: "long" })}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={invoicePeriod.year}
+                        onChange={(e) => setInvoicePeriod({ ...invoicePeriod, year: parseInt(e.target.value) })}
+                        style={styles.input}
+                      >
+                        {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={styles.modalActions}>
+                    <button
+                      onClick={() => {
+                        if (selectedOrgForInvoice) {
+                          createInvoice(selectedOrgForInvoice, invoicePeriod.month, invoicePeriod.year);
+                        }
+                      }}
+                      style={styles.addButton}
+                      disabled={!selectedOrgForInvoice}
+                    >
+                      Opprett
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowCreateInvoice(false);
+                        setSelectedOrgForInvoice(null);
+                      }}
+                      style={styles.cancelButton}
+                    >
+                      Avbryt
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div style={styles.invoiceList}>
+                {invoices.length === 0 ? (
+                  <p style={styles.emptyText}>Ingen fakturaer funnet</p>
+                ) : (
+                  invoices.map(invoice => {
+                    const statusColors: Record<string, { color: string; bg: string }> = {
+                      draft: { color: "#6b7280", bg: "rgba(107, 114, 128, 0.15)" },
+                      sent: { color: "#3b82f6", bg: "rgba(59, 130, 246, 0.15)" },
+                      paid: { color: "#22c55e", bg: "rgba(34, 197, 94, 0.15)" },
+                      overdue: { color: "#ef4444", bg: "rgba(239, 68, 68, 0.15)" },
+                      cancelled: { color: "#6b7280", bg: "rgba(107, 114, 128, 0.15)" }
+                    };
+                    const statusLabels: Record<string, string> = {
+                      draft: "Kladd",
+                      sent: "Sendt",
+                      paid: "Betalt",
+                      overdue: "Forfalt",
+                      cancelled: "Kansellert"
+                    };
+                    const statusInfo = statusColors[invoice.status] || statusColors.draft;
+                    const monthName = new Date(2000, invoice.periodMonth - 1).toLocaleDateString("nb-NO", { month: "long" });
+
+                    return (
+                      <div key={invoice.id} style={styles.invoiceCard}>
+                        <div style={styles.invoiceCardHeader}>
+                          <div>
+                            <h4 style={styles.invoiceNumber}>{invoice.invoiceNumber}</h4>
+                            <p style={styles.invoiceOrg}>{invoice.organization.name}</p>
+                            <p style={styles.invoicePeriod}>
+                              {monthName} {invoice.periodYear}
+                            </p>
+                          </div>
+                          <div style={styles.invoiceCardRight}>
+                            <span style={{
+                              ...styles.statusBadge,
+                              color: statusInfo.color,
+                              background: statusInfo.bg
+                            }}>
+                              {statusLabels[invoice.status]}
+                            </span>
+                            <p style={styles.invoiceAmount}>{invoice.amount} kr</p>
+                          </div>
+                        </div>
+                        <div style={styles.invoiceDetails}>
+                          <p style={styles.invoiceDetail}>
+                            <strong>Base-pris:</strong> {invoice.basePrice} kr
+                          </p>
+                          {invoice.modulePrice > 0 && (
+                            <p style={styles.invoiceDetail}>
+                              <strong>Moduler:</strong> {invoice.modulePrice} kr
+                            </p>
+                          )}
+                          <p style={styles.invoiceDetail}>
+                            <strong>Forfallsdato:</strong> {formatDate(invoice.dueDate)}
+                          </p>
+                          {invoice.paidDate && (
+                            <p style={styles.invoiceDetail}>
+                              <strong>Betalt:</strong> {formatDate(invoice.paidDate)}
+                            </p>
+                          )}
+                        </div>
+                        <div style={styles.invoiceActions}>
+                          {invoice.status === "draft" && (
+                            <button
+                              onClick={() => updateInvoiceStatus(invoice.id, "sent")}
+                              style={styles.invoiceActionButton}
+                            >
+                              Marker som sendt
+                            </button>
+                          )}
+                          {invoice.status !== "paid" && invoice.status !== "cancelled" && (
+                            <button
+                              onClick={() => updateInvoiceStatus(invoice.id, "paid", new Date().toISOString())}
+                              style={{ ...styles.invoiceActionButton, background: "#22c55e" }}
+                            >
+                              Marker som betalt
+                            </button>
+                          )}
+                          {invoice.status !== "cancelled" && (
+                            <button
+                              onClick={() => updateInvoiceStatus(invoice.id, "cancelled")}
+                              style={{ ...styles.invoiceActionButton, background: "#ef4444" }}
+                            >
+                              Kanseller
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div style={styles.modalActions}>
+              <button
+                onClick={() => setShowInvoicesPanel(false)}
                 style={styles.cancelButton}
               >
                 Lukk
@@ -1681,5 +2006,113 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: "#3b82f6",
     cursor: "pointer",
     fontSize: "0.8rem",
+  },
+  invoiceSection: {
+    maxHeight: "70vh",
+    overflowY: "auto",
+  },
+  invoiceHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "1rem",
+  },
+  loadingText: {
+    color: "#a3a3a3",
+    fontSize: "0.9rem",
+  },
+  createInvoiceForm: {
+    padding: "1rem",
+    background: "#1a1a1a",
+    borderRadius: "8px",
+    marginBottom: "1rem",
+    border: "1px solid #262626",
+  },
+  createInvoiceTitle: {
+    fontSize: "1rem",
+    fontWeight: "600",
+    margin: "0 0 1rem 0",
+    color: "#fff",
+  },
+  dateInputRow: {
+    display: "flex",
+    gap: "0.5rem",
+  },
+  invoiceList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+  },
+  emptyText: {
+    color: "#737373",
+    textAlign: "center",
+    padding: "2rem",
+  },
+  invoiceCard: {
+    padding: "1rem",
+    background: "#1a1a1a",
+    borderRadius: "8px",
+    border: "1px solid #262626",
+  },
+  invoiceCardHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: "0.75rem",
+  },
+  invoiceCardRight: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    gap: "0.5rem",
+  },
+  invoiceNumber: {
+    fontSize: "1rem",
+    fontWeight: "600",
+    margin: "0 0 0.25rem 0",
+    color: "#fff",
+  },
+  invoiceOrg: {
+    fontSize: "0.85rem",
+    color: "#a3a3a3",
+    margin: "0 0 0.25rem 0",
+  },
+  invoicePeriod: {
+    fontSize: "0.85rem",
+    color: "#737373",
+    margin: 0,
+  },
+  invoiceAmount: {
+    fontSize: "1.1rem",
+    fontWeight: "600",
+    color: "#fff",
+    margin: 0,
+  },
+  invoiceDetails: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.5rem",
+    marginBottom: "0.75rem",
+    paddingTop: "0.75rem",
+    borderTop: "1px solid #262626",
+  },
+  invoiceDetail: {
+    fontSize: "0.85rem",
+    color: "#a3a3a3",
+    margin: 0,
+  },
+  invoiceActions: {
+    display: "flex",
+    gap: "0.5rem",
+    flexWrap: "wrap",
+  },
+  invoiceActionButton: {
+    padding: "0.5rem 1rem",
+    background: "#262626",
+    border: "none",
+    borderRadius: "4px",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: "0.85rem",
   },
 };
