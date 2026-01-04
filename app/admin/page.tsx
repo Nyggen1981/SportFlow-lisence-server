@@ -651,7 +651,7 @@ export default function AdminDashboard() {
         <div style={styles.headerLeft}>
           <img src="/sportflow-logo-dark.png" alt="SportFlow" style={styles.headerLogo} />
           <div>
-            <h1 style={styles.title}>Lisensadmin</h1>
+            <h1 style={styles.title}>SportFlow Admin</h1>
             <p style={styles.subtitle}>{organizations.length} organisasjoner</p>
           </div>
         </div>

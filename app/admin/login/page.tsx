@@ -151,7 +151,7 @@ export default function AdminLoginPage() {
               fontWeight: "600",
             }}
           >
-            Lisensadmin
+            Administration Server
           </h1>
         </div>
 
