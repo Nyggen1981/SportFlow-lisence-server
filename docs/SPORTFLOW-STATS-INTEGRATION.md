@@ -2,13 +2,20 @@
 
 ## Oversikt
 
-SportFlow-appen kan sende bruksstatistikk til lisensserveren en gang i døgnet. Dette gir deg som administrator innsikt i hvor aktive kundene er.
+Det er to måter å hente statistikk fra SportFlow-appen til lisensserveren:
 
-## API-endepunkt
+1. **Push-metode**: SportFlow-appen sender statistikk automatisk (f.eks. en gang i døgnet)
+2. **Pull-metode**: Lisensserveren ber om statistikk manuelt via admin-panelet
+
+---
+
+## Metode 1: Push fra SportFlow (automatisk)
+
+### API-endepunkt på lisensserveren
 
 **URL:** `POST https://din-lisensserver.vercel.app/api/stats/report`
 
-## Autentisering
+### Autentisering
 
 Bruk organisasjonens lisensnøkkel for autentisering.
 
@@ -204,6 +211,128 @@ Vi anbefaler å sende statistikk **en gang i døgnet** (f.eks. kl. 03:00). Dette
 - Oppdatert oversikt uten å overbelaste serveren
 - Lavere kostnad for API-kall
 - Tilstrekkelig innsikt for fakturering og kundeoppfølging
+
+---
+
+## Metode 2: Pull fra lisensserver (manuell oppdatering)
+
+Lisensserveren kan be om statistikk fra SportFlow-appen via admin-panelet. For at dette skal fungere, må SportFlow-appen ha et endepunkt som returnerer statistikk.
+
+### Oppsett i admin-panelet
+
+1. Gå til organisasjonens kort i admin-panelet
+2. Sett **App-URL** til SportFlow-appens base-URL (f.eks. `https://minapp.vercel.app`)
+3. Klikk **"🔄 Oppdater"** for å hente statistikk
+
+### API-endepunkt i SportFlow-appen
+
+**URL:** `POST /api/license/stats`
+
+Lisensserveren vil kalle dette endepunktet med lisensnøkkelen.
+
+### Request fra lisensserveren
+
+```json
+{
+  "licenseKey": "clxxxxxxxxxxxxxxxxxx"
+}
+```
+
+### Forventet response fra SportFlow
+
+```json
+{
+  "totalUsers": 45,
+  "activeUsers": 32,
+  "lastUserLogin": "2026-01-04T14:30:00.000Z",
+  "totalFacilities": 8,
+  "totalCategories": 5,
+  "totalBookings": 1250,
+  "bookingsThisMonth": 78,
+  "pendingBookings": 12,
+  "totalRoles": 4
+}
+```
+
+### Implementeringseksempel for SportFlow
+
+```typescript
+// app/api/license/stats/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { licenseKey } = body;
+
+    // Valider at dette er riktig lisensnøkkel for denne appen
+    const expectedKey = process.env.LICENSE_KEY;
+    if (!licenseKey || licenseKey !== expectedKey) {
+      return NextResponse.json(
+        { error: "Ugyldig lisensnøkkel" },
+        { status: 401 }
+      );
+    }
+
+    // Hent statistikk
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [
+      totalUsers,
+      activeUsers,
+      lastLogin,
+      totalFacilities,
+      totalCategories,
+      totalBookings,
+      bookingsThisMonth,
+      pendingBookings,
+      totalRoles
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({
+        where: { lastLoginAt: { gte: thirtyDaysAgo } }
+      }),
+      prisma.user.findFirst({
+        orderBy: { lastLoginAt: "desc" },
+        select: { lastLoginAt: true }
+      }),
+      prisma.facility.count(),
+      prisma.category.count(),
+      prisma.booking.count(),
+      prisma.booking.count({
+        where: { createdAt: { gte: startOfMonth } }
+      }),
+      prisma.booking.count({
+        where: { status: "PENDING" }
+      }),
+      prisma.role.count()
+    ]);
+
+    return NextResponse.json({
+      totalUsers,
+      activeUsers,
+      lastUserLogin: lastLogin?.lastLoginAt?.toISOString() || null,
+      totalFacilities,
+      totalCategories,
+      totalBookings,
+      bookingsThisMonth,
+      pendingBookings,
+      totalRoles
+    });
+  } catch (error) {
+    console.error("Stats error:", error);
+    return NextResponse.json(
+      { error: "Intern serverfeil" },
+      { status: 500 }
+    );
+  }
+}
+```
+
+---
 
 ## Sikkerhet
 
