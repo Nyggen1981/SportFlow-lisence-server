@@ -45,6 +45,9 @@ model Organization {
   totalUsers    Int      @default(0)
   totalBookings Int      @default(0)
   
+  // Referanse til statistikk
+  stats         OrganizationStats?
+  
   // Notater
   notes         String?
   
@@ -184,6 +187,36 @@ model Invoice {
   @@index([status])
   @@index([periodYear, periodMonth])
   @@index([dueDate])
+}
+
+// Detaljert statistikk fra SportFlow-apper
+model OrganizationStats {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Brukerstatistikk
+  totalUsers      Int      @default(0)
+  activeUsers     Int      @default(0)           // Brukere innlogget siste 30 dager
+  lastUserLogin   DateTime?                      // Sist en bruker logget inn
+  
+  // Fasiliteter og ressurser
+  totalFacilities Int      @default(0)           // Antall fasiliteter
+  totalCategories Int      @default(0)           // Antall kategorier
+  
+  // Bookinger
+  totalBookings   Int      @default(0)           // Totalt antall bookinger
+  bookingsThisMonth Int    @default(0)           // Bookinger denne måneden
+  pendingBookings Int      @default(0)           // Ventende bookinger
+  
+  // Roller og tilgang
+  totalRoles      Int      @default(0)           // Antall roller
+  
+  // Oppdatering
+  lastUpdated     DateTime @default(now())       // Når statistikken sist ble oppdatert
+  
+  @@index([organizationId])
+  @@index([lastUpdated])
 }
 
 // Bedriftsinformasjon for fakturaer og admin

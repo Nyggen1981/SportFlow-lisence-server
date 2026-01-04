@@ -4,6 +4,21 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LICENSE_TYPES, calculateMonthlyPrice, getLicensePrice, LicenseType } from "@/lib/license-config";
 
+type OrganizationStats = {
+  id: string;
+  organizationId: string;
+  totalUsers: number;
+  activeUsers: number;
+  lastUserLogin: string | null;
+  totalFacilities: number;
+  totalCategories: number;
+  totalBookings: number;
+  bookingsThisMonth: number;
+  pendingBookings: number;
+  totalRoles: number;
+  lastUpdated: string;
+};
+
 type Organization = {
   id: string;
   name: string;
@@ -22,6 +37,7 @@ type Organization = {
   appVersion: string | null;
   totalUsers: number;
   totalBookings: number;
+  stats?: OrganizationStats | null;
 };
 
 type Module = {
@@ -1518,6 +1534,65 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
+                {/* Statistikk-seksjon */}
+                {org.stats && (
+                  <div style={styles.statsSection}>
+                    <h4 style={styles.statsTitle}>
+                      📊 Aktivitetsstatistikk
+                      <span style={styles.statsUpdated}>
+                        Oppdatert: {formatDate(org.stats.lastUpdated)}
+                      </span>
+                    </h4>
+                    <div style={styles.statsGrid}>
+                      <div style={styles.statItem}>
+                        <span style={styles.statValue}>{org.stats.totalUsers}</span>
+                        <span style={styles.statLabel}>Brukere</span>
+                      </div>
+                      <div style={styles.statItem}>
+                        <span style={styles.statValue}>{org.stats.activeUsers}</span>
+                        <span style={styles.statLabel}>Aktive (30d)</span>
+                      </div>
+                      <div style={styles.statItem}>
+                        <span style={styles.statValue}>{org.stats.totalFacilities}</span>
+                        <span style={styles.statLabel}>Fasiliteter</span>
+                      </div>
+                      <div style={styles.statItem}>
+                        <span style={styles.statValue}>{org.stats.totalCategories}</span>
+                        <span style={styles.statLabel}>Kategorier</span>
+                      </div>
+                      <div style={styles.statItem}>
+                        <span style={styles.statValue}>{org.stats.totalRoles}</span>
+                        <span style={styles.statLabel}>Roller</span>
+                      </div>
+                      <div style={styles.statItem}>
+                        <span style={styles.statValue}>{org.stats.totalBookings}</span>
+                        <span style={styles.statLabel}>Bookinger</span>
+                      </div>
+                      <div style={styles.statItem}>
+                        <span style={styles.statValue}>{org.stats.bookingsThisMonth}</span>
+                        <span style={styles.statLabel}>Denne mnd</span>
+                      </div>
+                      <div style={styles.statItem}>
+                        <span style={styles.statValue}>{org.stats.pendingBookings}</span>
+                        <span style={styles.statLabel}>Ventende</span>
+                      </div>
+                    </div>
+                    {org.stats.lastUserLogin && (
+                      <p style={styles.lastLogin}>
+                        Siste innlogging: {formatDate(org.stats.lastUserLogin)}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {!org.stats && org.isActive && (
+                  <div style={styles.noStatsSection}>
+                    <p style={styles.noStatsText}>
+                      📊 Ingen statistikk mottatt ennå. SportFlow-appen må konfigureres til å sende statistikk.
+                    </p>
+                  </div>
+                )}
+
               </div>
             );
           })
@@ -2258,5 +2333,68 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: "#fff",
     cursor: "pointer",
     fontSize: "0.85rem",
+  },
+  statsSection: {
+    marginTop: "1rem",
+    padding: "1rem",
+    background: "rgba(59, 130, 246, 0.05)",
+    borderRadius: "8px",
+    border: "1px solid rgba(59, 130, 246, 0.2)",
+  },
+  statsTitle: {
+    fontSize: "0.9rem",
+    fontWeight: "600",
+    margin: "0 0 0.75rem 0",
+    color: "#60a5fa",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  statsUpdated: {
+    fontSize: "0.75rem",
+    fontWeight: "normal",
+    color: "#737373",
+  },
+  statsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: "0.75rem",
+  },
+  statItem: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "0.5rem",
+    background: "rgba(59, 130, 246, 0.1)",
+    borderRadius: "6px",
+  },
+  statValue: {
+    fontSize: "1.25rem",
+    fontWeight: "700",
+    color: "#fff",
+  },
+  statLabel: {
+    fontSize: "0.7rem",
+    color: "#a3a3a3",
+    marginTop: "0.25rem",
+  },
+  lastLogin: {
+    fontSize: "0.8rem",
+    color: "#737373",
+    margin: "0.75rem 0 0 0",
+    textAlign: "center",
+  },
+  noStatsSection: {
+    marginTop: "1rem",
+    padding: "1rem",
+    background: "rgba(107, 114, 128, 0.1)",
+    borderRadius: "8px",
+    border: "1px dashed rgba(107, 114, 128, 0.3)",
+  },
+  noStatsText: {
+    fontSize: "0.85rem",
+    color: "#737373",
+    margin: 0,
+    textAlign: "center",
   },
 };
