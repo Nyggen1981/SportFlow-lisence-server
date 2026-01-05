@@ -1234,7 +1234,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderTop: "1px solid #eee",
   },
   invFooterCompany: {
-    color: "#c00",
     fontWeight: "600",
     fontStyle: "italic",
   },
