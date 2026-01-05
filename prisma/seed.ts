@@ -78,6 +78,22 @@ async function main() {
 
   console.log("✅ Pricing module created:", pricingModule.name);
 
+  // Kampoppsett-modul for kampplanlegging og -administrasjon
+  const matchSetupModule = await prisma.module.upsert({
+    where: { key: "match-setup" },
+    update: {},
+    create: {
+      key: "match-setup",
+      name: "Kampoppsett",
+      description: "Kampplanlegging, lagoppsett og kamprapportering",
+      isStandard: false,
+      isActive: true,
+      price: 149 // kr/mnd ekstra
+    }
+  });
+
+  console.log("✅ Match setup module created:", matchSetupModule.name);
+
   console.log("\n🎉 Seed completed successfully!");
 }
 
