@@ -42,14 +42,19 @@ type CompanySettings = {
   vatNumber: string | null;
   email: string | null;
   phone: string | null;
+  website: string | null;
   address: string | null;
   postalCode: string | null;
   city: string | null;
   country: string;
   bankAccount: string | null;
+  bankName: string | null;
   logoUrl: string | null;
   invoicePrefix: string;
+  defaultDueDays: number;
   vatRate: number;
+  invoiceNote: string | null;
+  paymentTerms: string | null;
 };
 
 export default function InvoicesPage() {
@@ -581,8 +586,9 @@ export default function InvoicesPage() {
             
             <div style={styles.invoicePreview}>
               <div id="invoice-document" style={styles.invoiceDocument}>
+                {/* Header: Logo left, FAKTURA + company right */}
                 <div style={styles.invHeader}>
-                  <div>
+                  <div style={styles.invLogoSection}>
                     {companySettings.logoUrl ? (
                       <img src={companySettings.logoUrl} alt="Logo" style={styles.invLogo} />
                     ) : (
@@ -591,70 +597,107 @@ export default function InvoicesPage() {
                   </div>
                   <div style={styles.invHeaderRight}>
                     <h1 style={styles.invTitle}>FAKTURA</h1>
-                    <p style={styles.invNumber}>{previewInvoice.invoiceNumber}</p>
+                    <p style={styles.invCompanyName}>{companySettings.companyName}</p>
+                    {companySettings.address && <p style={styles.invCompanyInfo}>{companySettings.address}</p>}
+                    {companySettings.postalCode && <p style={styles.invCompanyInfo}>{companySettings.postalCode} {companySettings.city}</p>}
                   </div>
                 </div>
 
-                <div style={styles.invMeta}>
-                  <div style={styles.invMetaSection}>
-                    <p style={styles.invMetaLabel}>Fra:</p>
-                    <p style={styles.invMetaValue}>{companySettings.companyName}</p>
-                    {companySettings.address && <p style={styles.invMetaSmall}>{companySettings.address}</p>}
-                    {companySettings.postalCode && <p style={styles.invMetaSmall}>{companySettings.postalCode} {companySettings.city}</p>}
-                    {companySettings.orgNumber && <p style={styles.invMetaSmall}>Org.nr: {companySettings.orgNumber}</p>}
-                  </div>
-                  <div style={styles.invMetaSection}>
-                    <p style={styles.invMetaLabel}>Til:</p>
-                    <p style={styles.invMetaValue}>{previewInvoice.organization.name}</p>
-                    <p style={styles.invMetaSmall}>{previewInvoice.organization.contactEmail}</p>
+                {/* Customer info left, dates right */}
+                <div style={styles.invInfoRow}>
+                  <div style={styles.invCustomer}>
+                    <p style={styles.invCustomerName}>{previewInvoice.organization.name}</p>
                     {previewInvoice.organization.contactName && (
-                      <p style={styles.invMetaSmall}>v/ {previewInvoice.organization.contactName}</p>
+                      <p style={styles.invCustomerDetail}>v/ {previewInvoice.organization.contactName}</p>
                     )}
+                    <p style={styles.invCustomerDetail}>{previewInvoice.organization.contactEmail}</p>
                   </div>
-                  <div style={styles.invMetaSection}>
-                    <p style={styles.invMetaLabel}>Fakturadato:</p>
-                    <p style={styles.invMetaValue}>{formatDate(previewInvoice.invoiceDate)}</p>
-                    <p style={styles.invMetaLabel}>Forfallsdato:</p>
-                    <p style={styles.invMetaValue}>{formatDate(previewInvoice.dueDate)}</p>
+                  <div style={styles.invDates}>
+                    <div style={styles.invDateRow}>
+                      <span style={styles.invDateLabel}>Fakturadato:</span>
+                      <span style={styles.invDateValue}>{formatDate(previewInvoice.invoiceDate)}</span>
+                      <span style={styles.invDateLabel}>Fakturanr.:</span>
+                      <span style={styles.invDateValueBold}>{previewInvoice.invoiceNumber}</span>
+                    </div>
+                    <div style={styles.invDateRow}>
+                      <span style={styles.invDateLabel}></span>
+                      <span style={styles.invDateValue}></span>
+                      <span style={styles.invDateLabel}>Forfallsdato:</span>
+                      <span style={{ ...styles.invDateValueBold, color: "#c00" }}>{formatDate(previewInvoice.dueDate)}</span>
+                    </div>
                   </div>
                 </div>
 
+                {/* Period */}
+                <div style={styles.invPeriod}>
+                  <span style={styles.invPeriodLabel}>Periode:</span>
+                  <span style={styles.invPeriodValue}>{getMonthName(previewInvoice.periodMonth)} {previewInvoice.periodYear}</span>
+                </div>
+
+                {/* Table */}
                 <div style={styles.invTable}>
                   <div style={styles.invTableHeader}>
-                    <span style={{ flex: 3 }}>Beskrivelse</span>
-                    <span style={{ flex: 1, textAlign: "right" }}>Beløp</span>
+                    <span style={styles.invColDesc}>BESKRIVELSE</span>
+                    <span style={styles.invColPrice}>PRIS</span>
+                    <span style={styles.invColQty}>ANTALL</span>
+                    <span style={styles.invColAmount}>BELØP</span>
                   </div>
                   <div style={styles.invTableRow}>
-                    <span style={{ flex: 3 }}>
-                      {previewInvoice.licenseTypeName} - {getMonthName(previewInvoice.periodMonth)} {previewInvoice.periodYear}
-                    </span>
-                    <span style={{ flex: 1, textAlign: "right" }}>{previewInvoice.basePrice.toLocaleString()} kr</span>
+                    <span style={styles.invColDesc}>SportFlow Booking - {previewInvoice.licenseTypeName}</span>
+                    <span style={styles.invColPrice}>{previewInvoice.basePrice}</span>
+                    <span style={styles.invColQty}>1</span>
+                    <span style={styles.invColAmount}>{previewInvoice.basePrice}</span>
                   </div>
                   {previewInvoice.modules && JSON.parse(previewInvoice.modules).map((mod: { name: string; price: number }, i: number) => (
                     <div key={i} style={styles.invTableRow}>
-                      <span style={{ flex: 3 }}>{mod.name}</span>
-                      <span style={{ flex: 1, textAlign: "right" }}>{mod.price.toLocaleString()} kr</span>
+                      <span style={styles.invColDesc}>Tilleggsmodul: {mod.name}</span>
+                      <span style={styles.invColPrice}>{mod.price}</span>
+                      <span style={styles.invColQty}>1</span>
+                      <span style={styles.invColAmount}>{mod.price}</span>
                     </div>
                   ))}
-                  {previewInvoice.vatAmount > 0 && (
-                    <div style={styles.invTableRow}>
-                      <span style={{ flex: 3 }}>MVA ({companySettings.vatRate}%)</span>
-                      <span style={{ flex: 1, textAlign: "right" }}>{previewInvoice.vatAmount.toLocaleString()} kr</span>
-                    </div>
-                  )}
-                  <div style={styles.invTableTotal}>
-                    <span style={{ flex: 3 }}>Totalt å betale</span>
-                    <span style={{ flex: 1, textAlign: "right", fontWeight: "bold" }}>{previewInvoice.amount.toLocaleString()} kr</span>
+                </div>
+
+                {/* Total */}
+                <div style={styles.invTotalSection}>
+                  <div style={styles.invTotalRow}>
+                    <span style={styles.invTotalLabel}>Å BETALE</span>
+                    <span style={styles.invTotalValue}>{previewInvoice.amount.toLocaleString("nb-NO", { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>
 
-                <div style={styles.invPayment}>
-                  <p><strong>Bankkonto:</strong> {companySettings.bankAccount}</p>
-                  <p><strong>Merk betaling med:</strong> {previewInvoice.invoiceNumber.replace("INV-", "")}</p>
+                {/* Payment terms */}
+                <p style={styles.invTerms}>
+                  <em>Betalingsfrist: 14 dager fra fakturadato. Ta kontakt dersom fakturaen ikke stemmer.</em>
+                </p>
+
+                {/* Payment info */}
+                <div style={styles.invPaymentSection}>
+                  <div style={styles.invPaymentHeader}>
+                    <span>BETALINGSINFORMASJON</span>
+                    <div style={styles.invPaymentLine}></div>
+                  </div>
+                  <div style={styles.invPaymentContent}>
+                    <div style={styles.invPaymentLeft}>
+                      <p style={styles.invPaymentLabel}>Fakturanummer:</p>
+                      <p style={styles.invPaymentValue}>{previewInvoice.invoiceNumber}</p>
+                      <p style={styles.invPaymentLabel}>Sum å betale:</p>
+                      <p style={styles.invPaymentValue}>{previewInvoice.amount.toLocaleString("nb-NO", { minimumFractionDigits: 2 })}</p>
+                    </div>
+                    <div style={styles.invPaymentRight}>
+                      <p style={styles.invPaymentHighlight}>Husk å merke betalingen med fakturanummer!</p>
+                      <p style={styles.invPaymentLabel}>Bankkonto:</p>
+                      <p style={styles.invPaymentValue}>{companySettings.bankAccount}</p>
+                    </div>
+                  </div>
                 </div>
 
+                {/* Footer */}
                 <div style={styles.invFooter}>
-                  <p>{companySettings.companyName} {companySettings.orgNumber && `• Org.nr: ${companySettings.orgNumber}`}</p>
+                  <span style={styles.invFooterCompany}>{companySettings.companyName}</span>
+                  {companySettings.orgNumber && <span> // Org.nr: {companySettings.orgNumber}</span>}
+                  {companySettings.phone && <span> // TELEFON: {companySettings.phone}</span>}
+                  {companySettings.email && <span> // E-POST: {companySettings.email}</span>}
                 </div>
               </div>
             </div>
@@ -888,111 +931,201 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "1rem",
     overflowY: "auto",
     flex: 1,
+    background: "#e5e5e5",
   },
   invoiceDocument: {
     background: "#fff",
     color: "#000",
-    padding: "2rem",
-    borderRadius: "8px",
-    fontSize: "14px",
-    lineHeight: 1.5,
+    padding: "3rem",
+    borderRadius: "0",
+    fontSize: "13px",
+    lineHeight: 1.6,
+    fontFamily: "Arial, sans-serif",
+    boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
   },
   invHeader: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: "2rem",
+    marginBottom: "2.5rem",
   },
+  invLogoSection: {},
   invLogo: {
-    maxWidth: "150px",
-    maxHeight: "60px",
+    maxWidth: "180px",
+    maxHeight: "70px",
   },
   invLogoPlaceholder: {
-    width: "60px",
-    height: "60px",
-    background: "#3b82f6",
+    width: "70px",
+    height: "70px",
+    background: "#333",
     color: "#fff",
     borderRadius: "8px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "24px",
+    fontSize: "28px",
     fontWeight: "bold",
   },
   invHeaderRight: {
     textAlign: "right",
   },
   invTitle: {
-    fontSize: "28px",
+    fontSize: "32px",
     fontWeight: "bold",
     margin: 0,
-    color: "#333",
+    color: "#000",
+    letterSpacing: "2px",
   },
-  invNumber: {
+  invCompanyName: {
     fontSize: "14px",
+    fontWeight: "600",
+    margin: "0.5rem 0 0 0",
+  },
+  invCompanyInfo: {
+    fontSize: "12px",
     color: "#666",
-    margin: "0.25rem 0 0 0",
+    margin: "0.1rem 0 0 0",
   },
-  invMeta: {
+  invInfoRow: {
     display: "flex",
-    gap: "2rem",
+    justifyContent: "space-between",
     marginBottom: "2rem",
-    paddingBottom: "1.5rem",
-    borderBottom: "1px solid #eee",
   },
-  invMetaSection: {
-    flex: 1,
+  invCustomer: {},
+  invCustomerName: {
+    fontSize: "16px",
+    fontWeight: "600",
+    margin: 0,
   },
-  invMetaLabel: {
+  invCustomerDetail: {
+    fontSize: "13px",
+    color: "#444",
+    margin: "0.2rem 0 0 0",
+  },
+  invDates: {},
+  invDateRow: {
+    display: "flex",
+    gap: "0.5rem",
+    marginBottom: "0.25rem",
+  },
+  invDateLabel: {
     fontSize: "12px",
     color: "#888",
-    margin: "0.75rem 0 0.25rem 0",
+    minWidth: "80px",
   },
-  invMetaValue: {
+  invDateValue: {
+    fontSize: "12px",
+    minWidth: "80px",
+  },
+  invDateValueBold: {
+    fontSize: "12px",
+    fontWeight: "600",
+    minWidth: "80px",
+  },
+  invPeriod: {
+    marginBottom: "1.5rem",
+    fontSize: "13px",
+  },
+  invPeriodLabel: {
+    color: "#888",
+  },
+  invPeriodValue: {
+    fontWeight: "600",
+    marginLeft: "0.5rem",
+  },
+  invTable: {
+    marginBottom: "1.5rem",
+    borderTop: "1px solid #ddd",
+  },
+  invTableHeader: {
+    display: "flex",
+    padding: "0.6rem 0",
+    borderBottom: "1px solid #ddd",
+    fontSize: "11px",
+    color: "#888",
+    textTransform: "uppercase",
+  },
+  invTableRow: {
+    display: "flex",
+    padding: "0.75rem 0",
+    borderBottom: "1px solid #eee",
+    fontSize: "13px",
+  },
+  invColDesc: { flex: 3 },
+  invColPrice: { width: "70px", textAlign: "right" },
+  invColQty: { width: "70px", textAlign: "center" },
+  invColAmount: { width: "80px", textAlign: "right" },
+  invTotalSection: {
+    borderTop: "2px solid #000",
+    paddingTop: "1rem",
+    marginBottom: "2rem",
+  },
+  invTotalRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  invTotalLabel: {
+    fontSize: "18px",
+    fontWeight: "bold",
+  },
+  invTotalValue: {
+    fontSize: "24px",
+    fontWeight: "bold",
+  },
+  invTerms: {
+    fontSize: "11px",
+    color: "#888",
+    marginBottom: "2rem",
+  },
+  invPaymentSection: {
+    marginBottom: "2rem",
+  },
+  invPaymentHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "1rem",
+    marginBottom: "1rem",
+    fontSize: "12px",
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  invPaymentLine: {
+    flex: 1,
+    height: "3px",
+    background: "linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)",
+  },
+  invPaymentContent: {
+    display: "flex",
+    gap: "3rem",
+  },
+  invPaymentLeft: {},
+  invPaymentRight: {},
+  invPaymentLabel: {
+    fontSize: "11px",
+    color: "#888",
+    margin: "0.5rem 0 0.1rem 0",
+  },
+  invPaymentValue: {
     fontSize: "14px",
     fontWeight: "500",
     margin: 0,
   },
-  invMetaSmall: {
+  invPaymentHighlight: {
     fontSize: "13px",
-    color: "#666",
-    margin: "0.15rem 0 0 0",
-  },
-  invTable: {
-    marginBottom: "2rem",
-  },
-  invTableHeader: {
-    display: "flex",
-    padding: "0.75rem",
-    background: "#f5f5f5",
     fontWeight: "600",
-    fontSize: "12px",
-    borderRadius: "4px 4px 0 0",
-  },
-  invTableRow: {
-    display: "flex",
-    padding: "0.75rem",
-    borderBottom: "1px solid #eee",
-  },
-  invTableTotal: {
-    display: "flex",
-    padding: "0.75rem",
-    background: "#f8f8f8",
-    fontWeight: "600",
-    borderRadius: "0 0 4px 4px",
-  },
-  invPayment: {
-    background: "#f5f8ff",
-    padding: "1rem",
-    borderRadius: "6px",
-    marginBottom: "1.5rem",
-    fontSize: "13px",
+    color: "#000",
+    marginBottom: "0.5rem",
   },
   invFooter: {
     textAlign: "center",
     color: "#888",
-    fontSize: "12px",
-    paddingTop: "1rem",
+    fontSize: "11px",
+    paddingTop: "1.5rem",
     borderTop: "1px solid #eee",
+  },
+  invFooterCompany: {
+    color: "#c00",
+    fontWeight: "600",
   },
 };
