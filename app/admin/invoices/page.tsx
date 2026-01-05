@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { calculateMonthlyPrice, getLicensePrice, LicenseType } from "@/lib/license-config";
+import AdminLayout, { sharedStyles } from "../components/AdminLayout";
 
 type Organization = {
   id: string;
@@ -413,8 +414,8 @@ export default function InvoicesPage() {
 
   if (loading) {
     return (
-      <div style={styles.loadingScreen}>
-        <div style={styles.loadingSpinner} />
+      <div style={sharedStyles.loadingScreen}>
+        <div style={sharedStyles.loadingSpinner} />
         <p>Laster...</p>
       </div>
     );
@@ -430,36 +431,10 @@ export default function InvoicesPage() {
   ) : 0;
 
   return (
-    <div style={styles.container}>
-      {/* Centered Wrapper */}
-      <div style={styles.wrapper}>
-        {/* Top Navigation Bar */}
-        <nav style={styles.topNav}>
-          <div style={styles.topNavLeft}>
-            <img src="/sportflow-logo-dark.png" alt="SportFlow" style={styles.logo} />
-            <span style={styles.logoText}>Admin</span>
-          </div>
-          <div style={styles.topNavCenter}>
-            <button style={styles.navItem} onClick={() => router.push("/admin")}>Kunder</button>
-            <button style={styles.navItemActive}>Fakturaer</button>
-            <button style={styles.navItem} onClick={() => router.push("/admin/prices")}>Priser</button>
-            <button style={styles.navItem} onClick={() => router.push("/admin/settings")}>Innstillinger</button>
-          </div>
-          <div style={styles.topNavRight}>
-            <span style={styles.statPill}>
-              <span style={{ color: "#ef4444" }}>{totalOutstanding.toLocaleString()} kr</span> utestående
-            </span>
-            <button style={styles.logoutBtn} onClick={() => {
-              sessionStorage.removeItem("adminPassword");
-              document.cookie = "admin-auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-              router.push("/admin/login");
-            }}>
-              Logg ut
-            </button>
-          </div>
-        </nav>
-
-        {/* Main Content - Two Column Layout */}
+    <AdminLayout stats={[
+      { label: "utestående", value: `${totalOutstanding.toLocaleString()} kr`, color: "#ef4444" }
+    ]}>
+      {/* Main Content - Two Column Layout */}
         <div style={styles.twoColumnLayout}>
           {/* Left Panel - Customer List */}
           <div style={styles.leftPanel}>
@@ -802,7 +777,6 @@ export default function InvoicesPage() {
             )}
           </div>
         </div>
-      </div>
 
       {/* Invoice Preview Modal */}
       {previewInvoice && companySettings && (
@@ -907,102 +881,11 @@ export default function InvoicesPage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminLayout>
   );
 }
 
 const styles: { [key: string]: React.CSSProperties } = {
-  container: {
-    minHeight: "100vh",
-    background: "#0a0a0a",
-    color: "#fff",
-  },
-  wrapper: {
-    maxWidth: "900px",
-    margin: "0 auto",
-    padding: "1rem 1.5rem",
-  },
-  loadingScreen: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: "100vh",
-    background: "#0a0a0a",
-    color: "#fff",
-    gap: "1rem",
-  },
-  loadingSpinner: {
-    width: "40px",
-    height: "40px",
-    border: "3px solid #333",
-    borderTopColor: "#3b82f6",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-  },
-  
-  // Top Navigation
-  topNav: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "0.75rem 0",
-    marginBottom: "1.25rem",
-    borderBottom: "1px solid #222",
-  },
-  topNavLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.5rem",
-  },
-  topNavCenter: {
-    display: "flex",
-    gap: "0.25rem",
-  },
-  topNavRight: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.75rem",
-  },
-  logo: { height: "22px", width: "auto" },
-  logoText: { fontSize: "0.85rem", fontWeight: "600" },
-  navItem: {
-    padding: "0.5rem 0.75rem",
-    background: "transparent",
-    border: "none",
-    borderRadius: "5px",
-    color: "#888",
-    fontSize: "0.8rem",
-    cursor: "pointer",
-  },
-  navItemActive: {
-    padding: "0.5rem 0.75rem",
-    background: "rgba(59,130,246,0.15)",
-    border: "none",
-    borderRadius: "5px",
-    color: "#3b82f6",
-    fontSize: "0.8rem",
-    cursor: "pointer",
-    fontWeight: "500",
-  },
-  statPill: {
-    fontSize: "0.75rem",
-    color: "#888",
-    padding: "0.4rem 0.75rem",
-    background: "#111",
-    borderRadius: "20px",
-    border: "1px solid #222",
-  },
-  logoutBtn: {
-    padding: "0.4rem 0.6rem",
-    background: "transparent",
-    border: "1px solid #333",
-    borderRadius: "5px",
-    color: "#666",
-    cursor: "pointer",
-    fontSize: "0.7rem",
-  },
-
   // Two Column Layout
   twoColumnLayout: {
     display: "grid",

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LICENSE_TYPES, calculateMonthlyPrice, getLicensePrice, LicenseType } from "@/lib/license-config";
+import AdminLayout, { sharedStyles } from "./components/AdminLayout";
 
 // Types
 type OrganizationStats = {
@@ -292,83 +293,42 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div style={styles.loadingScreen}>
-        <div style={styles.loadingSpinner} />
+      <div style={sharedStyles.loadingScreen}>
+        <div style={sharedStyles.loadingSpinner} />
         <p>Laster...</p>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
-      {/* Sidebar */}
-      <aside style={styles.sidebar}>
-        <div style={styles.sidebarHeader}>
-          <img src="/sportflow-logo-dark.png" alt="SportFlow" style={styles.logo} />
-          <span style={styles.logoText}>Admin</span>
+    <AdminLayout stats={[
+      { label: "kunder", value: String(organizations.length) },
+      { label: "MRR", value: `${totalRevenue.toLocaleString()} kr`, color: "#22c55e" }
+    ]}>
+      {/* Header */}
+      <header style={sharedStyles.pageHeader}>
+        <div>
+          <h1 style={sharedStyles.pageTitle}>Kunder</h1>
+          <p style={sharedStyles.pageSubtitle}>Administrer organisasjoner og lisenser</p>
         </div>
-        
-        <nav style={styles.nav}>
-          <button style={styles.navItemActive}>
-            <span>🏢</span> Kunder
-          </button>
-          <button style={styles.navItem} onClick={() => router.push("/admin/invoices")}>
-            <span>📄</span> Fakturaer
-          </button>
-          <button style={styles.navItem} onClick={() => router.push("/admin/prices")}>
-            <span>💰</span> Priser
-          </button>
-          <button style={styles.navItem} onClick={() => router.push("/admin/settings")}>
-            <span>⚙️</span> Innstillinger
-          </button>
-        </nav>
-
-        <div style={styles.sidebarStats}>
-          <div style={styles.sidebarStatItem}>
-            <span style={styles.sidebarStatValue}>{organizations.length}</span>
-            <span style={styles.sidebarStatLabel}>Kunder</span>
-          </div>
-          <div style={styles.sidebarStatItem}>
-            <span style={styles.sidebarStatValue}>{activeCount}</span>
-            <span style={styles.sidebarStatLabel}>Aktive</span>
-          </div>
-          <div style={styles.sidebarStatItem}>
-            <span style={{ ...styles.sidebarStatValue, color: "#22c55e" }}>{totalRevenue.toLocaleString()} kr</span>
-            <span style={styles.sidebarStatLabel}>MRR</span>
-          </div>
-        </div>
-
-        <button style={styles.logoutBtn} onClick={handleLogout}>
-          Logg ut
+        <button style={sharedStyles.primaryBtn} onClick={() => setShowAddModal(true)}>
+          + Ny kunde
         </button>
-      </aside>
+      </header>
 
-      {/* Main Content */}
-      <main style={styles.main}>
-        {/* Header */}
-        <header style={styles.header}>
-          <div>
-            <h1 style={styles.pageTitle}>Kunder</h1>
-            <p style={styles.pageSubtitle}>Administrer organisasjoner og lisenser</p>
-          </div>
-          <button style={styles.primaryBtn} onClick={() => setShowAddModal(true)}>
-            + Ny kunde
-          </button>
-        </header>
-
-        {/* Messages */}
-        {error && (
-          <div style={styles.errorMsg}>
-            {error}
-            <button onClick={() => setError("")} style={styles.closeBtn}>×</button>
-          </div>
-        )}
-        {success && (
-          <div style={styles.successMsg}>
-            {success}
-            <button onClick={() => setSuccess("")} style={styles.closeBtn}>×</button>
-          </div>
-        )}
+      {/* Messages */}
+      {error && (
+        <div style={sharedStyles.errorMsg}>
+          {error}
+          <button onClick={() => setError("")} style={sharedStyles.closeBtn}>×</button>
+        </div>
+      )}
+      {success && (
+        <div style={sharedStyles.successMsg}>
+          {success}
+          <button onClick={() => setSuccess("")} style={sharedStyles.closeBtn}>×</button>
+        </div>
+      )}
 
         {/* Customer List */}
         <div style={styles.customerList}>
@@ -665,7 +625,6 @@ export default function AdminDashboard() {
             })
           )}
         </div>
-      </main>
 
       {/* Add Customer Modal */}
       {showAddModal && (
@@ -727,201 +686,12 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
-
-    </div>
+    </AdminLayout>
   );
 }
 
 // Styles
 const styles: { [key: string]: React.CSSProperties } = {
-  container: {
-    display: "flex",
-    minHeight: "100vh",
-    background: "#0a0a0a",
-    color: "#fff",
-  },
-  loadingScreen: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: "100vh",
-    background: "#0a0a0a",
-    color: "#fff",
-    gap: "1rem",
-  },
-  loadingSpinner: {
-    width: "40px",
-    height: "40px",
-    border: "3px solid #333",
-    borderTopColor: "#3b82f6",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-  },
-  
-  // Sidebar
-  sidebar: {
-    width: "240px",
-    background: "#111",
-    borderRight: "1px solid #222",
-    display: "flex",
-    flexDirection: "column",
-    padding: "1.5rem 1rem",
-  },
-  sidebarHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.75rem",
-    marginBottom: "2rem",
-    paddingBottom: "1.5rem",
-    borderBottom: "1px solid #222",
-  },
-  logo: {
-    height: "32px",
-    width: "auto",
-  },
-  logoText: {
-    fontSize: "1.1rem",
-    fontWeight: "600",
-    color: "#fff",
-  },
-  nav: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.25rem",
-    flex: 1,
-  },
-  navItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.75rem",
-    padding: "0.75rem 1rem",
-    background: "transparent",
-    border: "none",
-    borderRadius: "8px",
-    color: "#888",
-    fontSize: "0.9rem",
-    cursor: "pointer",
-    textAlign: "left",
-  },
-  navItemActive: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.75rem",
-    padding: "0.75rem 1rem",
-    background: "rgba(59,130,246,0.15)",
-    border: "none",
-    borderRadius: "8px",
-    color: "#3b82f6",
-    fontSize: "0.9rem",
-    cursor: "pointer",
-    textAlign: "left",
-    fontWeight: "500",
-  },
-  sidebarStats: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.75rem",
-    padding: "1rem",
-    background: "#1a1a1a",
-    borderRadius: "8px",
-    marginBottom: "1rem",
-  },
-  sidebarStatItem: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  sidebarStatValue: {
-    fontSize: "1.1rem",
-    fontWeight: "600",
-    color: "#fff",
-  },
-  sidebarStatLabel: {
-    fontSize: "0.8rem",
-    color: "#666",
-  },
-  logoutBtn: {
-    padding: "0.75rem",
-    background: "transparent",
-    border: "1px solid #333",
-    borderRadius: "8px",
-    color: "#666",
-    cursor: "pointer",
-    fontSize: "0.85rem",
-  },
-
-  // Main
-  main: {
-    flex: 1,
-    padding: "2rem",
-    overflowY: "auto",
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "2rem",
-  },
-  pageTitle: {
-    fontSize: "1.75rem",
-    fontWeight: "700",
-    margin: 0,
-  },
-  pageSubtitle: {
-    fontSize: "0.9rem",
-    color: "#666",
-    margin: "0.25rem 0 0 0",
-  },
-  primaryBtn: {
-    padding: "0.75rem 1.5rem",
-    background: "#3b82f6",
-    border: "none",
-    borderRadius: "8px",
-    color: "#fff",
-    fontSize: "0.9rem",
-    fontWeight: "500",
-    cursor: "pointer",
-  },
-  cancelBtn: {
-    padding: "0.75rem 1.5rem",
-    background: "transparent",
-    border: "1px solid #333",
-    borderRadius: "8px",
-    color: "#888",
-    fontSize: "0.9rem",
-    cursor: "pointer",
-  },
-
-  // Messages
-  errorMsg: {
-    display: "flex",
-    justifyContent: "space-between",
-    padding: "1rem",
-    background: "rgba(239,68,68,0.1)",
-    border: "1px solid rgba(239,68,68,0.3)",
-    borderRadius: "8px",
-    color: "#f87171",
-    marginBottom: "1rem",
-  },
-  successMsg: {
-    display: "flex",
-    justifyContent: "space-between",
-    padding: "1rem",
-    background: "rgba(34,197,94,0.1)",
-    border: "1px solid rgba(34,197,94,0.3)",
-    borderRadius: "8px",
-    color: "#4ade80",
-    marginBottom: "1rem",
-  },
-  closeBtn: {
-    background: "none",
-    border: "none",
-    color: "inherit",
-    fontSize: "1.25rem",
-    cursor: "pointer",
-  },
-
   // Customer List
   customerList: {
     display: "flex",
