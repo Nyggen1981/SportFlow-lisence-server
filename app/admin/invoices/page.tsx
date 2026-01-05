@@ -220,12 +220,51 @@ export default function InvoicesPage() {
     setError("");
     
     try {
+      // First, set the preview to render the invoice
+      setPreviewInvoice(invoice);
+      
+      // Wait for render
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Generate PDF
+      const invoiceEl = document.getElementById("invoice-document");
+      let pdfBase64: string | undefined;
+      
+      if (invoiceEl) {
+        const html2pdf = (await import("html2pdf.js")).default;
+        const pdfBlob = await html2pdf()
+          .set({
+            margin: 10,
+            filename: `Faktura-${invoice.invoiceNumber}.pdf`,
+            image: { type: "jpeg" as const, quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: "mm" as const, format: "a4" as const, orientation: "portrait" as const }
+          })
+          .from(invoiceEl)
+          .outputPdf("blob");
+        
+        // Convert blob to base64
+        const reader = new FileReader();
+        pdfBase64 = await new Promise<string>((resolve) => {
+          reader.onloadend = () => {
+            const base64 = (reader.result as string).split(",")[1];
+            resolve(base64);
+          };
+          reader.readAsDataURL(pdfBlob);
+        });
+      }
+      
+      // Close preview
+      setPreviewInvoice(null);
+      
+      // Send email with PDF
       const response = await fetch(`/api/invoices/${invoice.id}/send`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-admin-secret": password
-        }
+        },
+        body: JSON.stringify({ pdfBase64 })
       });
 
       const data = await response.json();
@@ -237,8 +276,10 @@ export default function InvoicesPage() {
       } else {
         setError(data.error || "Kunne ikke sende e-post");
       }
-    } catch {
+    } catch (err) {
+      console.error("Send email error:", err);
       setError("Nettverksfeil ved sending av e-post");
+      setPreviewInvoice(null);
     } finally {
       setSendingEmail(null);
     }
