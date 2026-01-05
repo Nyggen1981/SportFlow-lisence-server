@@ -1057,7 +1057,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
     display: "flex",
     flexDirection: "column",
-    minHeight: "297mm", // A4 height
+    minHeight: "1000px", // Approximate A4 content height
   },
   invMainContent: {
     flex: 1,
