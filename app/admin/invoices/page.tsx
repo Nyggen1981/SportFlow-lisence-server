@@ -761,12 +761,12 @@ export default function InvoicesPage() {
                       <p style={styles.invPaymentLabel}>Fakturanummer:</p>
                       <p style={styles.invPaymentValue}>{previewInvoice.invoiceNumber}</p>
                       <p style={styles.invPaymentLabel}>Sum å betale:</p>
-                      <p style={styles.invPaymentValue}>{previewInvoice.amount.toLocaleString("nb-NO", { minimumFractionDigits: 2 })}</p>
+                      <p style={{ ...styles.invPaymentValue, marginBottom: 0 }}>{previewInvoice.amount.toLocaleString("nb-NO", { minimumFractionDigits: 2 })}</p>
                     </div>
                     <div style={styles.invPaymentRight}>
                       <p style={styles.invPaymentHighlight}>Husk å merke betalingen med fakturanummer!</p>
                       <p style={styles.invPaymentLabel}>Bankkonto:</p>
-                      <p style={styles.invPaymentValue}>{companySettings.bankAccount}</p>
+                      <p style={{ ...styles.invPaymentValue, fontSize: "18px", marginBottom: 0 }}>{companySettings.bankAccount}</p>
                     </div>
                   </div>
                 </div>
@@ -1192,47 +1192,57 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     alignItems: "center",
     gap: "1rem",
-    marginBottom: "1rem",
-    fontSize: "12px",
-    fontWeight: "600",
+    marginBottom: "1.5rem",
+    fontSize: "13px",
+    fontWeight: "700",
     textTransform: "uppercase",
+    letterSpacing: "0.5px",
   },
   invPaymentLine: {
     flex: 1,
     height: "3px",
     background: "linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)",
+    borderRadius: "2px",
   },
   invPaymentContent: {
     display: "flex",
-    gap: "3rem",
+    justifyContent: "space-between",
   },
-  invPaymentLeft: {},
-  invPaymentRight: {},
+  invPaymentLeft: {
+    flex: "0 0 auto",
+  },
+  invPaymentRight: {
+    flex: "0 0 auto",
+    textAlign: "left",
+  },
   invPaymentLabel: {
-    fontSize: "11px",
-    color: "#888",
-    margin: "0.5rem 0 0.1rem 0",
+    fontSize: "12px",
+    color: "#666",
+    margin: "0 0 0.2rem 0",
   },
   invPaymentValue: {
-    fontSize: "14px",
-    fontWeight: "500",
-    margin: 0,
+    fontSize: "16px",
+    fontWeight: "600",
+    margin: "0 0 1rem 0",
+    color: "#000",
   },
   invPaymentHighlight: {
-    fontSize: "13px",
-    fontWeight: "600",
+    fontSize: "14px",
+    fontWeight: "700",
     color: "#000",
-    marginBottom: "0.5rem",
+    marginBottom: "1.5rem",
   },
   invFooter: {
     textAlign: "center",
-    color: "#888",
-    fontSize: "11px",
-    paddingTop: "1.5rem",
-    borderTop: "1px solid #eee",
+    color: "#666",
+    fontSize: "12px",
+    paddingTop: "2rem",
+    marginTop: "2rem",
+    borderTop: "1px solid #ddd",
   },
   invFooterCompany: {
     color: "#c00",
     fontWeight: "600",
+    fontStyle: "italic",
   },
 };
