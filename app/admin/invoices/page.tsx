@@ -594,7 +594,16 @@ export default function InvoicesPage() {
                       {selectedOrg.isActive && (
                         <div style={styles.section}>
                           <label style={styles.sectionLabel}>Utløpsdato</label>
-                          <p style={styles.infoValue}>{formatDate(selectedOrg.expiresAt)}</p>
+                          <input
+                            type="date"
+                            value={selectedOrg.expiresAt.split("T")[0]}
+                            onChange={async (e) => {
+                              const newDate = new Date(e.target.value);
+                              newDate.setHours(23, 59, 59, 999);
+                              await updateOrgStatus(selectedOrg, selectedOrg.licenseType, newDate.toISOString());
+                            }}
+                            style={styles.dateInput}
+                          />
                         </div>
                       )}
                     </div>
@@ -1126,7 +1135,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: "#fff",
     margin: 0,
   },
-
+  dateInput: {
+    padding: "0.5rem 0.75rem",
+    background: "#0a0a0a",
+    border: "1px solid #333",
+    borderRadius: "6px",
+    color: "#fff",
+    fontSize: "0.85rem",
+    cursor: "pointer",
+    width: "100%",
+  },
   // Modules Tab
   modulesTab: {
     display: "flex",

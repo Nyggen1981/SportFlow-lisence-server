@@ -465,19 +465,20 @@ export default function AdminDashboard() {
                               </div>
                             </div>
 
-                            {/* Dates */}
+                            {/* Expiry Date */}
                             {org.isActive && (
-                              <div style={styles.infoGrid}>
-                                <div style={styles.infoSection}>
-                                  <label style={styles.infoLabel}>Utløper</label>
-                                  <p style={styles.infoValue}>{formatDate(org.expiresAt)}</p>
-                                </div>
-                                <div style={styles.infoSection}>
-                                  <label style={styles.infoLabel}>Grace period</label>
-                                  <p style={styles.infoValue}>
-                                    {org.graceEndsAt ? formatDate(org.graceEndsAt) : "Ikke satt"}
-                                  </p>
-                                </div>
+                              <div style={styles.infoSection}>
+                                <label style={styles.infoLabel}>Utløpsdato</label>
+                                <input
+                                  type="date"
+                                  value={org.expiresAt.split("T")[0]}
+                                  onChange={async (e) => {
+                                    const newDate = new Date(e.target.value);
+                                    newDate.setHours(23, 59, 59, 999);
+                                    await updateOrgStatus(org, org.licenseType, newDate.toISOString());
+                                  }}
+                                  style={styles.dateInput}
+                                />
                               </div>
                             )}
 
@@ -837,6 +838,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: "0.9rem",
     color: "#fff",
     margin: 0,
+  },
+  dateInput: {
+    padding: "0.5rem 0.75rem",
+    background: "#0a0a0a",
+    border: "1px solid #333",
+    borderRadius: "6px",
+    color: "#fff",
+    fontSize: "0.85rem",
+    cursor: "pointer",
   },
   infoGrid: {
     display: "grid",
