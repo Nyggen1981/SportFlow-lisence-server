@@ -154,8 +154,9 @@ model Invoice {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   
   // Periode som faktureres
-  periodMonth    Int                              // 1-12
-  periodYear     Int                              // f.eks. 2025
+  periodMonth    Int                              // Start-måned 1-12
+  periodYear     Int                              // Start-år f.eks. 2025
+  periodMonths   Int      @default(1)             // Antall måneder (1, 3, 6, 12)
   
   // Beløp
   amount         Int                              // Total beløp i kr (inkl. mva hvis aktuelt)

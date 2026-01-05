@@ -21,6 +21,7 @@ type Invoice = {
   organization: Organization;
   periodMonth: number;
   periodYear: number;
+  periodMonths: number;
   amount: number;
   basePrice: number;
   modulePrice: number;
@@ -76,6 +77,7 @@ export default function InvoicesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createOrgId, setCreateOrgId] = useState<string>("");
   const [createPeriod, setCreatePeriod] = useState({ month: new Date().getMonth() + 1, year: new Date().getFullYear() });
+  const [createPeriodMonths, setCreatePeriodMonths] = useState<number>(1);
   const [creating, setCreating] = useState(false);
   
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
@@ -167,7 +169,8 @@ export default function InvoicesPage() {
         body: JSON.stringify({
           organizationId: createOrgId,
           periodMonth: createPeriod.month,
-          periodYear: createPeriod.year
+          periodYear: createPeriod.year,
+          periodMonths: createPeriodMonths
         })
       });
 
@@ -175,6 +178,7 @@ export default function InvoicesPage() {
         await loadInvoices(password);
         setShowCreateModal(false);
         setCreateOrgId("");
+        setCreatePeriodMonths(1);
         setSuccess("Faktura opprettet");
         setTimeout(() => setSuccess(""), 3000);
       } else {
@@ -268,6 +272,18 @@ export default function InvoicesPage() {
 
   const getMonthName = (month: number) => {
     return new Date(2000, month - 1).toLocaleDateString("nb-NO", { month: "long" });
+  };
+
+  const formatPeriod = (startMonth: number, startYear: number, months: number = 1) => {
+    if (months === 1) {
+      return `${getMonthName(startMonth)} ${startYear}`;
+    }
+    if (months === 12) {
+      return `${startYear} (helår)`;
+    }
+    const endMonth = ((startMonth - 1 + months - 1) % 12) + 1;
+    const endYear = startYear + Math.floor((startMonth - 1 + months - 1) / 12);
+    return `${getMonthName(startMonth)} – ${getMonthName(endMonth)} ${endYear}`;
   };
 
   const statusColors: Record<string, { color: string; bg: string }> = {
@@ -420,7 +436,7 @@ export default function InvoicesPage() {
                     <span style={styles.customerName}>{invoice.organization.name}</span>
                   </span>
                   <span style={styles.colPeriod}>
-                    {getMonthName(invoice.periodMonth)} {invoice.periodYear}
+                    {formatPeriod(invoice.periodMonth, invoice.periodYear, invoice.periodMonths || 1)}
                   </span>
                   <span style={styles.colAmount}>
                     {invoice.amount.toLocaleString()} kr
@@ -512,9 +528,33 @@ export default function InvoicesPage() {
               </select>
             </div>
 
+            <div style={styles.formGroup}>
+              <label style={styles.formLabel}>Faktureres for</label>
+              <div style={styles.periodButtons}>
+                {[
+                  { value: 1, label: "1 mnd" },
+                  { value: 3, label: "3 mnd" },
+                  { value: 6, label: "6 mnd" },
+                  { value: 12, label: "1 år" }
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    style={{
+                      ...styles.periodBtn,
+                      ...(createPeriodMonths === opt.value ? styles.periodBtnActive : {})
+                    }}
+                    onClick={() => setCreatePeriodMonths(opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div style={styles.formRow}>
               <div style={styles.formGroup}>
-                <label style={styles.formLabel}>Måned</label>
+                <label style={styles.formLabel}>Fra måned</label>
                 <select
                   value={createPeriod.month}
                   onChange={e => setCreatePeriod({ ...createPeriod, month: parseInt(e.target.value) })}
@@ -532,12 +572,24 @@ export default function InvoicesPage() {
                   onChange={e => setCreatePeriod({ ...createPeriod, year: parseInt(e.target.value) })}
                   style={styles.formSelect}
                 >
-                  {[2024, 2025, 2026].map(y => (
+                  {[2024, 2025, 2026, 2027].map(y => (
                     <option key={y} value={y}>{y}</option>
                   ))}
                 </select>
               </div>
             </div>
+
+            {createPeriodMonths > 1 && (
+              <p style={styles.periodHint}>
+                Periode: {getMonthName(createPeriod.month)} {createPeriod.year} – {
+                  (() => {
+                    const endMonth = ((createPeriod.month - 1 + createPeriodMonths - 1) % 12) + 1;
+                    const endYear = createPeriod.year + Math.floor((createPeriod.month - 1 + createPeriodMonths - 1) / 12);
+                    return `${getMonthName(endMonth)} ${endYear}`;
+                  })()
+                }
+              </p>
+            )}
 
             <div style={styles.modalActions}>
               <button style={styles.cancelBtn} onClick={() => setShowCreateModal(false)}>
@@ -631,7 +683,7 @@ export default function InvoicesPage() {
                 {/* Period */}
                 <div style={styles.invPeriod}>
                   <span style={styles.invPeriodLabel}>Periode:</span>
-                  <span style={styles.invPeriodValue}>{getMonthName(previewInvoice.periodMonth)} {previewInvoice.periodYear}</span>
+                  <span style={styles.invPeriodValue}>{formatPeriod(previewInvoice.periodMonth, previewInvoice.periodYear, previewInvoice.periodMonths || 1)}</span>
                 </div>
 
                 {/* Table */}
@@ -644,15 +696,15 @@ export default function InvoicesPage() {
                   </div>
                   <div style={styles.invTableRow}>
                     <span style={styles.invColDesc}>SportFlow Booking - {previewInvoice.licenseTypeName}</span>
-                    <span style={styles.invColPrice}>{previewInvoice.basePrice}</span>
-                    <span style={styles.invColQty}>1</span>
+                    <span style={styles.invColPrice}>{Math.round(previewInvoice.basePrice / (previewInvoice.periodMonths || 1))}</span>
+                    <span style={styles.invColQty}>{previewInvoice.periodMonths || 1}</span>
                     <span style={styles.invColAmount}>{previewInvoice.basePrice}</span>
                   </div>
                   {previewInvoice.modules && JSON.parse(previewInvoice.modules).map((mod: { name: string; price: number }, i: number) => (
                     <div key={i} style={styles.invTableRow}>
                       <span style={styles.invColDesc}>Tilleggsmodul: {mod.name}</span>
-                      <span style={styles.invColPrice}>{mod.price}</span>
-                      <span style={styles.invColQty}>1</span>
+                      <span style={styles.invColPrice}>{Math.round(mod.price / (previewInvoice.periodMonths || 1))}</span>
+                      <span style={styles.invColQty}>{previewInvoice.periodMonths || 1}</span>
                       <span style={styles.invColAmount}>{mod.price}</span>
                     </div>
                   ))}
@@ -864,6 +916,34 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: "6px",
     color: "#fff",
     fontSize: "0.85rem",
+  },
+  periodButtons: {
+    display: "flex",
+    gap: "0.5rem",
+  },
+  periodBtn: {
+    flex: 1,
+    padding: "0.6rem",
+    background: "#0a0a0a",
+    border: "1px solid #333",
+    borderRadius: "6px",
+    color: "#888",
+    cursor: "pointer",
+    fontSize: "0.85rem",
+    fontWeight: "500",
+  },
+  periodBtnActive: {
+    background: "rgba(59,130,246,0.15)",
+    borderColor: "#3b82f6",
+    color: "#3b82f6",
+  },
+  periodHint: {
+    fontSize: "0.8rem",
+    color: "#22c55e",
+    margin: "0 0 1rem 0",
+    padding: "0.5rem 0.75rem",
+    background: "rgba(34,197,94,0.1)",
+    borderRadius: "6px",
   },
   modalActions: {
     display: "flex",

@@ -44,6 +44,7 @@ export async function POST(request: Request) {
     organizationId: string;
     periodMonth: number;
     periodYear: number;
+    periodMonths?: number;
     dueDate?: string;
     notes?: string;
   };
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { organizationId, periodMonth, periodYear, dueDate, notes } = body;
+  const { organizationId, periodMonth, periodYear, periodMonths = 1, dueDate, notes } = body;
 
   if (!organizationId || !periodMonth || !periodYear) {
     return NextResponse.json(
@@ -66,6 +67,13 @@ export async function POST(request: Request) {
   if (periodMonth < 1 || periodMonth > 12) {
     return NextResponse.json(
       { error: "periodMonth must be between 1 and 12" },
+      { status: 400 }
+    );
+  }
+
+  if (![1, 3, 6, 12].includes(periodMonths)) {
+    return NextResponse.json(
+      { error: "periodMonths must be 1, 3, 6, or 12" },
       { status: 400 }
     );
   }
@@ -113,20 +121,29 @@ export async function POST(request: Request) {
       where: { licenseType: org.licenseType }
     });
 
-    const basePrice = getLicensePrice(licenseType, licenseTypePrice?.price);
+    const monthlyBasePrice = getLicensePrice(licenseType, licenseTypePrice?.price);
     // Bruk calculateModulePrice som gir 0 for pilotkunder
-    const modulePrice = calculateModulePrice(licenseType, org.modules);
-    const totalAmount = calculateMonthlyPrice(licenseType, org.modules, basePrice);
+    const monthlyModulePrice = calculateModulePrice(licenseType, org.modules);
+    const monthlyTotal = calculateMonthlyPrice(licenseType, org.modules, monthlyBasePrice);
+    
+    // Multipliser med antall måneder
+    const basePrice = monthlyBasePrice * periodMonths;
+    const modulePrice = monthlyModulePrice * periodMonths;
+    const totalAmount = monthlyTotal * periodMonths;
 
-    // Lagre modul-informasjon som JSON (vis faktisk pris eller 0 for pilot)
+    // Lagre modul-informasjon som JSON (vis faktisk pris eller 0 for pilot, multiplisert med måneder)
     const isPilot = licenseType === "pilot";
     const modulesInfo = JSON.stringify(
       org.modules.map(orgModule => ({
         key: orgModule.module.key,
         name: orgModule.module.name,
-        price: isPilot ? 0 : (orgModule.module.price ?? 0)
+        price: isPilot ? 0 : ((orgModule.module.price ?? 0) * periodMonths)
       }))
     );
+    
+    // Beregn sluttmåned/år
+    const endMonth = ((periodMonth - 1 + periodMonths - 1) % 12) + 1;
+    const endYear = periodYear + Math.floor((periodMonth - 1 + periodMonths - 1) / 12);
 
     // Generer fakturanummer
     const invoiceNumber = await generateInvoiceNumber(periodYear);
@@ -142,6 +159,7 @@ export async function POST(request: Request) {
         organizationId,
         periodMonth,
         periodYear,
+        periodMonths,
         amount: totalAmount,
         basePrice,
         modulePrice,
