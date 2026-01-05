@@ -26,6 +26,10 @@ type CompanySettings = {
   vatRate: number;
   invoiceNote: string | null;
   paymentTerms: string | null;
+  emailSubject: string | null;
+  emailGreeting: string | null;
+  emailBody: string | null;
+  emailFooter: string | null;
 };
 
 export default function SettingsPage() {
@@ -420,6 +424,58 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            <div style={styles.settingsSection}>
+              <h3 style={styles.settingsSectionTitle}>E-post mal for fakturaer</h3>
+              <p style={styles.templateHint}>
+                Bruk <code>{"{customerName}"}</code> for kundenavn, <code>{"{invoiceNumber}"}</code> for fakturanummer,
+                <code>{"{amount}"}</code> for beløp, <code>{"{dueDate}"}</code> for forfallsdato,
+                <code>{"{period}"}</code> for periode.
+              </p>
+              <div style={sharedStyles.formGroup}>
+                <label style={sharedStyles.label}>E-post emne</label>
+                <input
+                  type="text"
+                  value={settingsForm.emailSubject || ""}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, emailSubject: e.target.value })}
+                  style={sharedStyles.input}
+                  placeholder="Faktura {invoiceNumber} - SportFlow"
+                />
+              </div>
+              <div style={sharedStyles.formGroup}>
+                <label style={sharedStyles.label}>Hilsen</label>
+                <input
+                  type="text"
+                  value={settingsForm.emailGreeting || ""}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, emailGreeting: e.target.value })}
+                  style={sharedStyles.input}
+                  placeholder="Hei {customerName},"
+                />
+              </div>
+              <div style={sharedStyles.formGroup}>
+                <label style={sharedStyles.label}>Hovedtekst</label>
+                <textarea
+                  value={settingsForm.emailBody || ""}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, emailBody: e.target.value })}
+                  style={styles.textarea}
+                  rows={4}
+                  placeholder="Vedlagt finner du faktura for SportFlow-abonnementet ditt for {period}.
+
+Faktura er vedlagt som PDF. Vennligst betal innen forfallsdato {dueDate}."
+                />
+              </div>
+              <div style={sharedStyles.formGroup}>
+                <label style={sharedStyles.label}>Signatur/Footer</label>
+                <textarea
+                  value={settingsForm.emailFooter || ""}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, emailFooter: e.target.value })}
+                  style={styles.textarea}
+                  rows={2}
+                  placeholder="Med vennlig hilsen,
+SportFlow"
+                />
+              </div>
+            </div>
+
             <div style={styles.formActions}>
               <button onClick={saveCompanySettings} style={sharedStyles.primaryBtn}>
                 Lagre innstillinger
@@ -496,6 +552,28 @@ export default function SettingsPage() {
                 <div>
                   <p style={styles.infoLabel}>MVA-sats</p>
                   <p style={styles.infoValue}>{companySettings.vatRate}%</p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ ...sharedStyles.card, gridColumn: "span 2" }}>
+              <h4 style={sharedStyles.cardTitle}>E-post mal</h4>
+              <div style={styles.emailTemplatePreview}>
+                <div>
+                  <p style={styles.infoLabel}>Emne</p>
+                  <p style={styles.infoValue}>{companySettings.emailSubject || "Faktura {invoiceNumber} - SportFlow"}</p>
+                </div>
+                <div>
+                  <p style={styles.infoLabel}>Hilsen</p>
+                  <p style={styles.infoValue}>{companySettings.emailGreeting || "Hei {customerName},"}</p>
+                </div>
+                <div style={{ gridColumn: "span 2" }}>
+                  <p style={styles.infoLabel}>Hovedtekst</p>
+                  <p style={styles.infoValue}>{companySettings.emailBody || "Vedlagt finner du faktura for SportFlow-abonnementet ditt."}</p>
+                </div>
+                <div style={{ gridColumn: "span 2" }}>
+                  <p style={styles.infoLabel}>Signatur</p>
+                  <p style={styles.infoValue}>{companySettings.emailFooter || "Med vennlig hilsen, SportFlow"}</p>
                 </div>
               </div>
             </div>
@@ -629,5 +707,20 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: "0.85rem",
     margin: 0,
     color: "#fff",
+    whiteSpace: "pre-wrap",
+  },
+  templateHint: {
+    fontSize: "0.75rem",
+    color: "#737373",
+    marginBottom: "1rem",
+    padding: "0.75rem",
+    background: "#1a1a1a",
+    borderRadius: "6px",
+    lineHeight: 1.6,
+  },
+  emailTemplatePreview: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, 1fr)",
+    gap: "0.85rem",
   },
 };

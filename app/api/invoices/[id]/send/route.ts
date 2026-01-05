@@ -61,7 +61,7 @@ export async function POST(
       // Ingen body, fortsett uten PDF
     }
 
-    // Send e-post
+    // Send e-post med tilpasset mal fra innstillinger
     const result = await sendInvoiceEmail({
       to: invoice.organization.contactEmail,
       customerName: invoice.organization.contactName || invoice.organization.name,
@@ -71,6 +71,10 @@ export async function POST(
       periodMonth,
       periodYear: invoice.periodYear,
       pdfBuffer,
+      emailSubject: companySettings?.emailSubject,
+      emailGreeting: companySettings?.emailGreeting,
+      emailBody: companySettings?.emailBody,
+      emailFooter: companySettings?.emailFooter,
     });
 
     if (!result.success) {

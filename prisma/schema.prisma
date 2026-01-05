@@ -258,6 +258,12 @@ model CompanySettings {
   invoiceNote     String?                           // Standard notat på fakturaer
   paymentTerms    String?                           // Betalingsbetingelser
   
+  // E-post maler
+  emailSubject    String?                           // E-post emne for fakturaer
+  emailGreeting   String?                           // Hilsen i e-post ("Hei {customerName},")
+  emailBody       String?                           // Hovedtekst i e-post
+  emailFooter     String?                           // Signatur/footer i e-post
+  
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
