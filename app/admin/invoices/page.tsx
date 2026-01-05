@@ -765,7 +765,7 @@ export default function InvoicesPage() {
                       <span style={styles.invColAmount}>BELØP</span>
                     </div>
                     <div style={styles.invTableRow}>
-                      <span style={styles.invColDesc}>SportFlow Booking - {previewInvoice.licenseTypeName}</span>
+                      <span style={styles.invColDesc}>SportFlow - {previewInvoice.licenseTypeName}</span>
                       <span style={styles.invColPrice}>{Math.round(previewInvoice.basePrice / (previewInvoice.periodMonths || 1))}</span>
                       <span style={styles.invColQty}>{previewInvoice.periodMonths || 1}</span>
                       <span style={styles.invColAmount}>{previewInvoice.basePrice}</span>
