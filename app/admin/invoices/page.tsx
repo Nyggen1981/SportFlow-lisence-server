@@ -431,50 +431,35 @@ export default function InvoicesPage() {
 
   return (
     <div style={styles.container}>
-      {/* Sidebar */}
-      <aside style={styles.sidebar}>
-        <div style={styles.sidebarHeader}>
-          <img src="/sportflow-logo-dark.png" alt="SportFlow" style={styles.logo} />
-          <span style={styles.logoText}>Admin</span>
-        </div>
-        
-        <nav style={styles.nav}>
-          <button style={styles.navItem} onClick={() => router.push("/admin")}>
-            <span>🏢</span> Kunder
-          </button>
-          <button style={styles.navItemActive}>
-            <span>📄</span> Fakturaer
-          </button>
-          <button style={styles.navItem} onClick={() => router.push("/admin/prices")}>
-            <span>💰</span> Priser
-          </button>
-          <button style={styles.navItem} onClick={() => router.push("/admin/settings")}>
-            <span>⚙️</span> Innstillinger
-          </button>
+      {/* Centered Wrapper */}
+      <div style={styles.wrapper}>
+        {/* Top Navigation Bar */}
+        <nav style={styles.topNav}>
+          <div style={styles.topNavLeft}>
+            <img src="/sportflow-logo-dark.png" alt="SportFlow" style={styles.logo} />
+            <span style={styles.logoText}>Admin</span>
+          </div>
+          <div style={styles.topNavCenter}>
+            <button style={styles.navItem} onClick={() => router.push("/admin")}>Kunder</button>
+            <button style={styles.navItemActive}>Fakturaer</button>
+            <button style={styles.navItem} onClick={() => router.push("/admin/prices")}>Priser</button>
+            <button style={styles.navItem} onClick={() => router.push("/admin/settings")}>Innstillinger</button>
+          </div>
+          <div style={styles.topNavRight}>
+            <span style={styles.statPill}>
+              <span style={{ color: "#ef4444" }}>{totalOutstanding.toLocaleString()} kr</span> utestående
+            </span>
+            <button style={styles.logoutBtn} onClick={() => {
+              sessionStorage.removeItem("adminPassword");
+              document.cookie = "admin-auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+              router.push("/admin/login");
+            }}>
+              Logg ut
+            </button>
+          </div>
         </nav>
 
-        <div style={styles.sidebarStats}>
-          <div style={styles.sidebarStatItem}>
-            <span style={styles.sidebarStatLabel}>Utestående</span>
-            <span style={{ ...styles.sidebarStatValue, color: "#ef4444" }}>{totalOutstanding.toLocaleString()} kr</span>
-          </div>
-          <div style={styles.sidebarStatItem}>
-            <span style={styles.sidebarStatLabel}>Forfalt</span>
-            <span style={{ ...styles.sidebarStatValue, color: overdueCount > 0 ? "#ef4444" : "#666" }}>{overdueCount}</span>
-          </div>
-        </div>
-
-        <button style={styles.logoutBtn} onClick={() => {
-          sessionStorage.removeItem("adminPassword");
-          document.cookie = "admin-auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-          router.push("/admin/login");
-        }}>
-          Logg ut
-        </button>
-      </aside>
-
-      {/* Main Content - Two Column Layout */}
-      <main style={styles.main}>
+        {/* Main Content - Two Column Layout */}
         <div style={styles.twoColumnLayout}>
           {/* Left Panel - Customer List */}
           <div style={styles.leftPanel}>
@@ -817,7 +802,7 @@ export default function InvoicesPage() {
             )}
           </div>
         </div>
-      </main>
+      </div>
 
       {/* Invoice Preview Modal */}
       {previewInvoice && companySettings && (
@@ -928,10 +913,14 @@ export default function InvoicesPage() {
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    display: "flex",
     minHeight: "100vh",
     background: "#0a0a0a",
     color: "#fff",
+  },
+  wrapper: {
+    maxWidth: "900px",
+    margin: "0 auto",
+    padding: "1rem 1.5rem",
   },
   loadingScreen: {
     display: "flex",
@@ -952,97 +941,74 @@ const styles: { [key: string]: React.CSSProperties } = {
     animation: "spin 1s linear infinite",
   },
   
-  // Sidebar
-  sidebar: {
-    width: "200px",
-    background: "#111",
-    borderRight: "1px solid #222",
-    display: "flex",
-    flexDirection: "column",
-    padding: "1rem",
-    flexShrink: 0,
-  },
-  sidebarHeader: {
+  // Top Navigation
+  topNav: {
     display: "flex",
     alignItems: "center",
-    gap: "0.5rem",
-    marginBottom: "1.5rem",
-    paddingBottom: "1rem",
+    justifyContent: "space-between",
+    padding: "0.75rem 0",
+    marginBottom: "1.25rem",
     borderBottom: "1px solid #222",
   },
-  logo: { height: "24px", width: "auto" },
-  logoText: { fontSize: "0.9rem", fontWeight: "600" },
-  nav: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.25rem",
-    flex: 1,
-  },
-  navItem: {
+  topNavLeft: {
     display: "flex",
     alignItems: "center",
     gap: "0.5rem",
-    padding: "0.6rem 0.75rem",
+  },
+  topNavCenter: {
+    display: "flex",
+    gap: "0.25rem",
+  },
+  topNavRight: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.75rem",
+  },
+  logo: { height: "22px", width: "auto" },
+  logoText: { fontSize: "0.85rem", fontWeight: "600" },
+  navItem: {
+    padding: "0.5rem 0.75rem",
     background: "transparent",
     border: "none",
-    borderRadius: "6px",
+    borderRadius: "5px",
     color: "#888",
     fontSize: "0.8rem",
     cursor: "pointer",
-    textAlign: "left",
   },
   navItemActive: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.5rem",
-    padding: "0.6rem 0.75rem",
+    padding: "0.5rem 0.75rem",
     background: "rgba(59,130,246,0.15)",
     border: "none",
-    borderRadius: "6px",
+    borderRadius: "5px",
     color: "#3b82f6",
     fontSize: "0.8rem",
     cursor: "pointer",
-    textAlign: "left",
     fontWeight: "500",
   },
-  sidebarStats: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.4rem",
-    padding: "0.6rem",
-    background: "#1a1a1a",
-    borderRadius: "6px",
-    marginBottom: "0.75rem",
+  statPill: {
+    fontSize: "0.75rem",
+    color: "#888",
+    padding: "0.4rem 0.75rem",
+    background: "#111",
+    borderRadius: "20px",
+    border: "1px solid #222",
   },
-  sidebarStatItem: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  sidebarStatValue: { fontSize: "0.8rem", fontWeight: "600", color: "#fff" },
-  sidebarStatLabel: { fontSize: "0.7rem", color: "#666" },
   logoutBtn: {
-    padding: "0.5rem",
+    padding: "0.4rem 0.6rem",
     background: "transparent",
     border: "1px solid #333",
-    borderRadius: "6px",
+    borderRadius: "5px",
     color: "#666",
     cursor: "pointer",
-    fontSize: "0.75rem",
+    fontSize: "0.7rem",
   },
 
-  // Main
-  main: {
-    flex: 1,
-    padding: "1.25rem",
-    overflowY: "auto",
-  },
+  // Two Column Layout
   twoColumnLayout: {
     display: "grid",
-    gridTemplateColumns: "280px 1fr",
-    gap: "1.25rem",
-    maxWidth: "1100px",
-    height: "calc(100vh - 2.5rem)",
+    gridTemplateColumns: "240px 1fr",
+    gap: "1rem",
+    height: "calc(100vh - 120px)",
   },
 
   // Left Panel
