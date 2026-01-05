@@ -77,16 +77,13 @@ export default function InvoicesPage() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   
-  const [activeTab, setActiveTab] = useState<"overview" | "invoices" | "settings">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "invoices">("overview");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   
   const [showCreateInvoice, setShowCreateInvoice] = useState(false);
   const [selectedOrgForInvoice, setSelectedOrgForInvoice] = useState<string | null>(null);
   const [invoicePeriod, setInvoicePeriod] = useState({ month: new Date().getMonth() + 1, year: new Date().getFullYear() });
   
-  const [editingSettings, setEditingSettings] = useState(false);
-  const [settingsForm, setSettingsForm] = useState<Partial<CompanySettings>>({});
-  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
 
@@ -277,83 +274,6 @@ export default function InvoicesPage() {
     }
   };
 
-  const saveCompanySettings = async () => {
-    try {
-      const response = await fetch("/api/settings/company", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-secret": password
-        },
-        body: JSON.stringify(settingsForm)
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCompanySettings(data.settings);
-        setEditingSettings(false);
-        setSuccess("Innstillinger lagret");
-        setTimeout(() => setSuccess(""), 3000);
-      } else {
-        setError("Kunne ikke lagre innstillinger");
-      }
-    } catch (err) {
-      setError("Nettverksfeil");
-    }
-  };
-
-  const uploadLogo = async (file: File) => {
-    setUploadingLogo(true);
-    try {
-      const formData = new FormData();
-      formData.append("logo", file);
-
-      const response = await fetch("/api/settings/logo", {
-        method: "POST",
-        headers: {
-          "x-admin-secret": password
-        },
-        body: formData
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCompanySettings(prev => prev ? { ...prev, logoUrl: data.logoUrl } : null);
-        setSettingsForm(prev => ({ ...prev, logoUrl: data.logoUrl }));
-        setSuccess("Logo lastet opp");
-        setTimeout(() => setSuccess(""), 3000);
-      } else {
-        const data = await response.json();
-        setError(data.error || "Kunne ikke laste opp logo");
-      }
-    } catch (err) {
-      setError("Nettverksfeil");
-    } finally {
-      setUploadingLogo(false);
-    }
-  };
-
-  const deleteLogo = async () => {
-    try {
-      const response = await fetch("/api/settings/logo", {
-        method: "DELETE",
-        headers: {
-          "x-admin-secret": password
-        }
-      });
-
-      if (response.ok) {
-        setCompanySettings(prev => prev ? { ...prev, logoUrl: null } : null);
-        setSettingsForm(prev => ({ ...prev, logoUrl: null }));
-        setSuccess("Logo fjernet");
-        setTimeout(() => setSuccess(""), 3000);
-      } else {
-        setError("Kunne ikke fjerne logo");
-      }
-    } catch (err) {
-      setError("Nettverksfeil");
-    }
-  };
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString("nb-NO", {
@@ -441,21 +361,46 @@ export default function InvoicesPage() {
 
   return (
     <div style={styles.container}>
-      {/* Header */}
-      <header style={styles.header}>
-        <div style={styles.headerLeft}>
-          <img src="/sportflow-logo-dark.png" alt="SportFlow" style={styles.headerLogo} />
+      {/* Sidebar */}
+      <aside style={styles.sidebar}>
+        <div style={styles.sidebarHeader}>
+          <img src="/sportflow-logo-dark.png" alt="SportFlow" style={styles.logo} />
+          <span style={styles.logoText}>Admin</span>
+        </div>
+        
+        <nav style={styles.nav}>
+          <button style={styles.navItem} onClick={() => router.push("/admin")}>
+            <span>🏢</span> Kunder
+          </button>
+          <button style={styles.navItemActive}>
+            <span>📄</span> Fakturaer
+          </button>
+          <button style={styles.navItem} onClick={() => router.push("/admin/prices")}>
+            <span>💰</span> Priser
+          </button>
+          <button style={styles.navItem} onClick={() => router.push("/admin/settings")}>
+            <span>⚙️</span> Innstillinger
+          </button>
+        </nav>
+
+        <button style={styles.logoutBtn} onClick={() => {
+          sessionStorage.removeItem("adminPassword");
+          document.cookie = "admin-auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+          router.push("/admin/login");
+        }}>
+          Logg ut
+        </button>
+      </aside>
+
+      {/* Main Content */}
+      <main style={styles.main}>
+        {/* Header */}
+        <header style={styles.header}>
           <div>
-            <h1 style={styles.title}>Fakturering</h1>
+            <h1 style={styles.title}>Fakturaer</h1>
             <p style={styles.subtitle}>Administrer fakturaer og betalinger</p>
           </div>
-        </div>
-        <div style={styles.headerActions}>
-          <button onClick={() => router.push("/admin")} style={styles.backButton}>
-            ← Tilbake
-          </button>
-        </div>
-      </header>
+        </header>
 
       {/* Messages */}
       {error && (
@@ -503,12 +448,6 @@ export default function InvoicesPage() {
           style={activeTab === "invoices" ? styles.tabActive : styles.tab}
         >
           Alle fakturaer
-        </button>
-        <button
-          onClick={() => setActiveTab("settings")}
-          style={activeTab === "settings" ? styles.tabActive : styles.tab}
-        >
-          ⚙️ Innstillinger
         </button>
       </div>
 
@@ -770,317 +709,6 @@ export default function InvoicesPage() {
           </div>
         )}
 
-        {/* Innstillinger */}
-        {activeTab === "settings" && companySettings && (
-          <div>
-            <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>Bedriftsinformasjon</h2>
-              {!editingSettings && (
-                <button onClick={() => setEditingSettings(true)} style={styles.editButton}>
-                  Rediger
-                </button>
-              )}
-            </div>
-
-            {editingSettings ? (
-              <div style={styles.settingsForm}>
-                <div style={styles.settingsSection}>
-                  <h3 style={styles.settingsSectionTitle}>Bedrift</h3>
-                  <div style={styles.settingsGrid}>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Bedriftsnavn *</label>
-                      <input
-                        type="text"
-                        value={settingsForm.companyName || ""}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, companyName: e.target.value })}
-                        style={styles.input}
-                      />
-                    </div>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Org.nummer</label>
-                      <input
-                        type="text"
-                        value={settingsForm.orgNumber || ""}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, orgNumber: e.target.value })}
-                        style={styles.input}
-                        placeholder="999 888 777"
-                      />
-                    </div>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>MVA-nummer</label>
-                      <input
-                        type="text"
-                        value={settingsForm.vatNumber || ""}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, vatNumber: e.target.value })}
-                        style={styles.input}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div style={styles.settingsSection}>
-                  <h3 style={styles.settingsSectionTitle}>Kontakt</h3>
-                  <div style={styles.settingsGrid}>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>E-post</label>
-                      <input
-                        type="email"
-                        value={settingsForm.email || ""}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, email: e.target.value })}
-                        style={styles.input}
-                      />
-                    </div>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Telefon</label>
-                      <input
-                        type="text"
-                        value={settingsForm.phone || ""}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, phone: e.target.value })}
-                        style={styles.input}
-                      />
-                    </div>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Nettside</label>
-                      <input
-                        type="text"
-                        value={settingsForm.website || ""}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, website: e.target.value })}
-                        style={styles.input}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div style={styles.settingsSection}>
-                  <h3 style={styles.settingsSectionTitle}>Adresse</h3>
-                  <div style={styles.settingsGrid}>
-                    <div style={{ ...styles.formGroup, gridColumn: "span 2" }}>
-                      <label style={styles.label}>Adresse</label>
-                      <input
-                        type="text"
-                        value={settingsForm.address || ""}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, address: e.target.value })}
-                        style={styles.input}
-                      />
-                    </div>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Postnummer</label>
-                      <input
-                        type="text"
-                        value={settingsForm.postalCode || ""}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, postalCode: e.target.value })}
-                        style={styles.input}
-                      />
-                    </div>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>By</label>
-                      <input
-                        type="text"
-                        value={settingsForm.city || ""}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, city: e.target.value })}
-                        style={styles.input}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div style={styles.settingsSection}>
-                  <h3 style={styles.settingsSectionTitle}>Bank</h3>
-                  <div style={styles.settingsGrid}>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Kontonummer</label>
-                      <input
-                        type="text"
-                        value={settingsForm.bankAccount || ""}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, bankAccount: e.target.value })}
-                        style={styles.input}
-                        placeholder="1234 56 78901"
-                      />
-                    </div>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Bank</label>
-                      <input
-                        type="text"
-                        value={settingsForm.bankName || ""}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, bankName: e.target.value })}
-                        style={styles.input}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div style={styles.settingsSection}>
-                  <h3 style={styles.settingsSectionTitle}>Faktura-innstillinger</h3>
-                  <div style={styles.settingsGrid}>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Faktura-prefix</label>
-                      <input
-                        type="text"
-                        value={settingsForm.invoicePrefix || ""}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, invoicePrefix: e.target.value })}
-                        style={styles.input}
-                      />
-                    </div>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Standard forfallsdager</label>
-                      <input
-                        type="number"
-                        value={settingsForm.defaultDueDays || 14}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, defaultDueDays: parseInt(e.target.value) })}
-                        style={styles.input}
-                      />
-                    </div>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>MVA-sats (%)</label>
-                      <input
-                        type="number"
-                        value={settingsForm.vatRate || 0}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, vatRate: parseInt(e.target.value) })}
-                        style={styles.input}
-                      />
-                    </div>
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Logo</label>
-                    <div style={styles.logoUploadSection}>
-                      {settingsForm.logoUrl && (
-                        <div style={styles.logoPreview}>
-                          <img 
-                            src={settingsForm.logoUrl} 
-                            alt="Logo" 
-                            style={styles.logoImage}
-                          />
-                          <button
-                            onClick={deleteLogo}
-                            style={styles.deleteLogoButton}
-                            type="button"
-                          >
-                            ✕ Fjern
-                          </button>
-                        </div>
-                      )}
-                      <div style={styles.uploadArea}>
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) uploadLogo(file);
-                          }}
-                          style={styles.fileInput}
-                          id="logo-upload"
-                          disabled={uploadingLogo}
-                        />
-                        <label htmlFor="logo-upload" style={styles.uploadLabel}>
-                          {uploadingLogo ? "Laster opp..." : "📤 Last opp logo"}
-                        </label>
-                        <p style={styles.uploadHint}>PNG, JPEG, SVG eller WebP. Maks 2MB.</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Notat på fakturaer</label>
-                    <textarea
-                      value={settingsForm.invoiceNote || ""}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, invoiceNote: e.target.value })}
-                      style={styles.textarea}
-                      rows={3}
-                    />
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Betalingsbetingelser</label>
-                    <textarea
-                      value={settingsForm.paymentTerms || ""}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, paymentTerms: e.target.value })}
-                      style={styles.textarea}
-                      rows={2}
-                    />
-                  </div>
-                </div>
-
-                <div style={styles.formActions}>
-                  <button onClick={saveCompanySettings} style={styles.primaryButton}>
-                    Lagre innstillinger
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditingSettings(false);
-                      setSettingsForm(companySettings);
-                    }}
-                    style={styles.cancelButton}
-                  >
-                    Avbryt
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div style={styles.settingsView}>
-                <div style={styles.settingsCard}>
-                  <h4 style={styles.cardTitle}>Bedriftsinformasjon</h4>
-                  <div style={styles.infoGrid}>
-                    <div>
-                      <p style={styles.infoLabel}>Bedriftsnavn</p>
-                      <p style={styles.infoValue}>{companySettings.companyName}</p>
-                    </div>
-                    <div>
-                      <p style={styles.infoLabel}>Org.nummer</p>
-                      <p style={styles.infoValue}>{companySettings.orgNumber || "-"}</p>
-                    </div>
-                    <div>
-                      <p style={styles.infoLabel}>E-post</p>
-                      <p style={styles.infoValue}>{companySettings.email || "-"}</p>
-                    </div>
-                    <div>
-                      <p style={styles.infoLabel}>Telefon</p>
-                      <p style={styles.infoValue}>{companySettings.phone || "-"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={styles.settingsCard}>
-                  <h4 style={styles.cardTitle}>Adresse</h4>
-                  <p style={styles.infoValue}>
-                    {companySettings.address || "-"}<br />
-                    {companySettings.postalCode} {companySettings.city}<br />
-                    {companySettings.country}
-                  </p>
-                </div>
-
-                <div style={styles.settingsCard}>
-                  <h4 style={styles.cardTitle}>Bankinformasjon</h4>
-                  <div style={styles.infoGrid}>
-                    <div>
-                      <p style={styles.infoLabel}>Kontonummer</p>
-                      <p style={styles.infoValue}>{companySettings.bankAccount || "-"}</p>
-                    </div>
-                    <div>
-                      <p style={styles.infoLabel}>Bank</p>
-                      <p style={styles.infoValue}>{companySettings.bankName || "-"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={styles.settingsCard}>
-                  <h4 style={styles.cardTitle}>Faktura-innstillinger</h4>
-                  <div style={styles.infoGrid}>
-                    <div>
-                      <p style={styles.infoLabel}>Prefix</p>
-                      <p style={styles.infoValue}>{companySettings.invoicePrefix}</p>
-                    </div>
-                    <div>
-                      <p style={styles.infoLabel}>Forfallsdager</p>
-                      <p style={styles.infoValue}>{companySettings.defaultDueDays} dager</p>
-                    </div>
-                    <div>
-                      <p style={styles.infoLabel}>MVA-sats</p>
-                      <p style={styles.infoValue}>{companySettings.vatRate}%</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Faktura forhåndsvisning modal */}
@@ -1357,19 +985,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: "#fff",
   },
   header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "1.5rem",
-  },
-  headerLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: "1rem",
-  },
-  headerLogo: {
-    height: "50px",
-    width: "auto",
+    marginBottom: "2rem",
   },
   title: {
     fontSize: "1.5rem",
