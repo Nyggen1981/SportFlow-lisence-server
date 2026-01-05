@@ -665,118 +665,124 @@ export default function InvoicesPage() {
             
             <div style={styles.invoicePreview}>
               <div id="invoice-document" style={styles.invoiceDocument}>
-                {/* Header: Logo left, FAKTURA + company right */}
-                <div style={styles.invHeader}>
-                  <div style={styles.invLogoSection}>
-                    {companySettings.logoUrl ? (
-                      <img src={companySettings.logoUrl} alt="Logo" style={styles.invLogo} />
-                    ) : (
-                      <div style={styles.invLogoPlaceholder}>{companySettings.companyName?.charAt(0) || "S"}</div>
-                    )}
-                  </div>
-                  <div style={styles.invHeaderRight}>
-                    <h1 style={styles.invTitle}>FAKTURA</h1>
-                    <p style={styles.invCompanyName}>{companySettings.companyName}</p>
-                    {companySettings.address && <p style={styles.invCompanyInfo}>{companySettings.address}</p>}
-                    {companySettings.postalCode && <p style={styles.invCompanyInfo}>{companySettings.postalCode} {companySettings.city}</p>}
-                  </div>
-                </div>
-
-                {/* Customer info left, dates right */}
-                <div style={styles.invInfoRow}>
-                  <div style={styles.invCustomer}>
-                    <p style={styles.invCustomerName}>{previewInvoice.organization.name}</p>
-                    {previewInvoice.organization.contactName && (
-                      <p style={styles.invCustomerDetail}>v/ {previewInvoice.organization.contactName}</p>
-                    )}
-                    <p style={styles.invCustomerDetail}>{previewInvoice.organization.contactEmail}</p>
-                  </div>
-                  <div style={styles.invDates}>
-                    <div style={styles.invDateRow}>
-                      <span style={styles.invDateLabel}>Fakturadato:</span>
-                      <span style={styles.invDateValue}>{formatDate(previewInvoice.invoiceDate)}</span>
-                      <span style={styles.invDateLabel}>Fakturanr.:</span>
-                      <span style={styles.invDateValueBold}>{previewInvoice.invoiceNumber}</span>
+                {/* Main content area */}
+                <div style={styles.invMainContent}>
+                  {/* Header: Logo left, FAKTURA + company right */}
+                  <div style={styles.invHeader}>
+                    <div style={styles.invLogoSection}>
+                      {companySettings.logoUrl ? (
+                        <img src={companySettings.logoUrl} alt="Logo" style={styles.invLogo} />
+                      ) : (
+                        <div style={styles.invLogoPlaceholder}>{companySettings.companyName?.charAt(0) || "S"}</div>
+                      )}
                     </div>
-                    <div style={styles.invDateRow}>
-                      <span style={styles.invDateLabel}></span>
-                      <span style={styles.invDateValue}></span>
-                      <span style={styles.invDateLabel}>Forfallsdato:</span>
-                      <span style={{ ...styles.invDateValueBold, color: "#c00" }}>{formatDate(previewInvoice.dueDate)}</span>
+                    <div style={styles.invHeaderRight}>
+                      <h1 style={styles.invTitle}>FAKTURA</h1>
+                      <p style={styles.invCompanyName}>{companySettings.companyName}</p>
+                      {companySettings.address && <p style={styles.invCompanyInfo}>{companySettings.address}</p>}
+                      {companySettings.postalCode && <p style={styles.invCompanyInfo}>{companySettings.postalCode} {companySettings.city}</p>}
                     </div>
                   </div>
-                </div>
 
-                {/* Period */}
-                <div style={styles.invPeriod}>
-                  <span style={styles.invPeriodLabel}>Periode:</span>
-                  <span style={styles.invPeriodValue}>{formatPeriod(previewInvoice.periodMonth, previewInvoice.periodYear, previewInvoice.periodMonths || 1)}</span>
-                </div>
+                  {/* Customer info left, dates right */}
+                  <div style={styles.invInfoRow}>
+                    <div style={styles.invCustomer}>
+                      <p style={styles.invCustomerName}>{previewInvoice.organization.name}</p>
+                      {previewInvoice.organization.contactName && (
+                        <p style={styles.invCustomerDetail}>v/ {previewInvoice.organization.contactName}</p>
+                      )}
+                      <p style={styles.invCustomerDetail}>{previewInvoice.organization.contactEmail}</p>
+                    </div>
+                    <div style={styles.invDates}>
+                      <div style={styles.invDateRow}>
+                        <span style={styles.invDateLabel}>Fakturadato:</span>
+                        <span style={styles.invDateValue}>{formatDate(previewInvoice.invoiceDate)}</span>
+                        <span style={styles.invDateLabel}>Fakturanr.:</span>
+                        <span style={styles.invDateValueBold}>{previewInvoice.invoiceNumber}</span>
+                      </div>
+                      <div style={styles.invDateRow}>
+                        <span style={styles.invDateLabel}></span>
+                        <span style={styles.invDateValue}></span>
+                        <span style={styles.invDateLabel}>Forfallsdato:</span>
+                        <span style={{ ...styles.invDateValueBold, color: "#c00" }}>{formatDate(previewInvoice.dueDate)}</span>
+                      </div>
+                    </div>
+                  </div>
 
-                {/* Table */}
-                <div style={styles.invTable}>
-                  <div style={styles.invTableHeader}>
-                    <span style={styles.invColDesc}>BESKRIVELSE</span>
-                    <span style={styles.invColPrice}>PRIS</span>
-                    <span style={styles.invColQty}>ANTALL</span>
-                    <span style={styles.invColAmount}>BELØP</span>
+                  {/* Period */}
+                  <div style={styles.invPeriod}>
+                    <span style={styles.invPeriodLabel}>Periode:</span>
+                    <span style={styles.invPeriodValue}>{formatPeriod(previewInvoice.periodMonth, previewInvoice.periodYear, previewInvoice.periodMonths || 1)}</span>
                   </div>
-                  <div style={styles.invTableRow}>
-                    <span style={styles.invColDesc}>SportFlow Booking - {previewInvoice.licenseTypeName}</span>
-                    <span style={styles.invColPrice}>{Math.round(previewInvoice.basePrice / (previewInvoice.periodMonths || 1))}</span>
-                    <span style={styles.invColQty}>{previewInvoice.periodMonths || 1}</span>
-                    <span style={styles.invColAmount}>{previewInvoice.basePrice}</span>
-                  </div>
-                  {previewInvoice.modules && JSON.parse(previewInvoice.modules).map((mod: { name: string; price: number }, i: number) => (
-                    <div key={i} style={styles.invTableRow}>
-                      <span style={styles.invColDesc}>Tilleggsmodul: {mod.name}</span>
-                      <span style={styles.invColPrice}>{Math.round(mod.price / (previewInvoice.periodMonths || 1))}</span>
+
+                  {/* Table */}
+                  <div style={styles.invTable}>
+                    <div style={styles.invTableHeader}>
+                      <span style={styles.invColDesc}>BESKRIVELSE</span>
+                      <span style={styles.invColPrice}>PRIS</span>
+                      <span style={styles.invColQty}>ANTALL</span>
+                      <span style={styles.invColAmount}>BELØP</span>
+                    </div>
+                    <div style={styles.invTableRow}>
+                      <span style={styles.invColDesc}>SportFlow Booking - {previewInvoice.licenseTypeName}</span>
+                      <span style={styles.invColPrice}>{Math.round(previewInvoice.basePrice / (previewInvoice.periodMonths || 1))}</span>
                       <span style={styles.invColQty}>{previewInvoice.periodMonths || 1}</span>
-                      <span style={styles.invColAmount}>{mod.price}</span>
+                      <span style={styles.invColAmount}>{previewInvoice.basePrice}</span>
                     </div>
-                  ))}
-                </div>
-
-                {/* Total */}
-                <div style={styles.invTotalSection}>
-                  <div style={styles.invTotalRow}>
-                    <span style={styles.invTotalLabel}>Å BETALE</span>
-                    <span style={styles.invTotalValue}>{previewInvoice.amount.toLocaleString("nb-NO", { minimumFractionDigits: 2 })}</span>
+                    {previewInvoice.modules && JSON.parse(previewInvoice.modules).map((mod: { name: string; price: number }, i: number) => (
+                      <div key={i} style={styles.invTableRow}>
+                        <span style={styles.invColDesc}>Tilleggsmodul: {mod.name}</span>
+                        <span style={styles.invColPrice}>{Math.round(mod.price / (previewInvoice.periodMonths || 1))}</span>
+                        <span style={styles.invColQty}>{previewInvoice.periodMonths || 1}</span>
+                        <span style={styles.invColAmount}>{mod.price}</span>
+                      </div>
+                    ))}
                   </div>
-                </div>
 
-                {/* Payment terms */}
-                <p style={styles.invTerms}>
-                  <em>Betalingsfrist: 14 dager fra fakturadato. Ta kontakt dersom fakturaen ikke stemmer.</em>
-                </p>
-
-                {/* Payment info */}
-                <div style={styles.invPaymentSection}>
-                  <div style={styles.invPaymentHeader}>
-                    <span>BETALINGSINFORMASJON</span>
-                    <div style={styles.invPaymentLine}></div>
-                  </div>
-                  <div style={styles.invPaymentContent}>
-                    <div style={styles.invPaymentLeft}>
-                      <p style={styles.invPaymentLabel}>Fakturanummer:</p>
-                      <p style={styles.invPaymentValue}>{previewInvoice.invoiceNumber}</p>
-                      <p style={styles.invPaymentLabel}>Sum å betale:</p>
-                      <p style={styles.invPaymentValue}>{previewInvoice.amount.toLocaleString("nb-NO", { minimumFractionDigits: 2 })}</p>
-                    </div>
-                    <div style={styles.invPaymentRight}>
-                      <p style={styles.invPaymentHighlight}>Husk å merke betalingen med fakturanummer!</p>
-                      <p style={styles.invPaymentLabel}>Bankkonto:</p>
-                      <p style={styles.invPaymentValue}>{companySettings.bankAccount}</p>
+                  {/* Total */}
+                  <div style={styles.invTotalSection}>
+                    <div style={styles.invTotalRow}>
+                      <span style={styles.invTotalLabel}>Å BETALE</span>
+                      <span style={styles.invTotalValue}>{previewInvoice.amount.toLocaleString("nb-NO", { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Footer */}
-                <div style={styles.invFooter}>
-                  <span style={styles.invFooterCompany}>{companySettings.companyName}</span>
-                  {companySettings.orgNumber && <span> // Org.nr: {companySettings.orgNumber}</span>}
-                  {companySettings.phone && <span> // TELEFON: {companySettings.phone}</span>}
-                  {companySettings.email && <span> // E-POST: {companySettings.email}</span>}
+                {/* Bottom section - pushed to bottom */}
+                <div style={styles.invBottomSection}>
+                  {/* Payment terms */}
+                  <p style={styles.invTerms}>
+                    <em>Betalingsfrist: 14 dager fra fakturadato. Ta kontakt dersom fakturaen ikke stemmer.</em>
+                  </p>
+
+                  {/* Payment info */}
+                  <div style={styles.invPaymentSection}>
+                    <div style={styles.invPaymentHeader}>
+                      <span>BETALINGSINFORMASJON</span>
+                      <div style={styles.invPaymentLine}></div>
+                    </div>
+                    <div style={styles.invPaymentContent}>
+                      <div style={styles.invPaymentLeft}>
+                        <p style={styles.invPaymentLabel}>Fakturanummer:</p>
+                        <p style={styles.invPaymentValue}>{previewInvoice.invoiceNumber}</p>
+                        <p style={styles.invPaymentLabel}>Sum å betale:</p>
+                        <p style={styles.invPaymentValue}>{previewInvoice.amount.toLocaleString("nb-NO", { minimumFractionDigits: 2 })}</p>
+                      </div>
+                      <div style={styles.invPaymentRight}>
+                        <p style={styles.invPaymentHighlight}>Husk å merke betalingen med fakturanummer!</p>
+                        <p style={styles.invPaymentLabel}>Bankkonto:</p>
+                        <p style={styles.invPaymentValue}>{companySettings.bankAccount}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div style={styles.invFooter}>
+                    <span style={styles.invFooterCompany}>{companySettings.companyName}</span>
+                    {companySettings.orgNumber && <span> // Org.nr: {companySettings.orgNumber}</span>}
+                    {companySettings.phone && <span> // TELEFON: {companySettings.phone}</span>}
+                    {companySettings.email && <span> // E-POST: {companySettings.email}</span>}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1049,6 +1055,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     lineHeight: 1.6,
     fontFamily: "Arial, sans-serif",
     boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+    display: "flex",
+    flexDirection: "column",
+    minHeight: "297mm", // A4 height
+  },
+  invMainContent: {
+    flex: 1,
+  },
+  invBottomSection: {
+    marginTop: "auto",
   },
   invHeader: {
     display: "flex",
