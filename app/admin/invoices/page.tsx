@@ -26,7 +26,7 @@ type Invoice = {
   basePrice: number;
   modulePrice: number;
   vatAmount: number;
-  status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
+  status: "draft" | "sent" | "paid" | "overdue" | "cancelled" | "refunded";
   invoiceDate: string;
   dueDate: string;
   paidDate: string | null;
@@ -245,7 +245,17 @@ export default function InvoicesPage() {
   };
 
   const deleteInvoice = async (invoiceId: string) => {
-    if (!confirm("Er du sikker på at du vil slette denne fakturaen?")) return;
+    const invoice = invoices.find(i => i.id === invoiceId);
+    if (!invoice) return;
+    
+    let message = "Er du sikker på at du vil slette denne fakturaen?";
+    if (invoice.status === "paid") {
+      message = "⚠️ ADVARSEL: Denne fakturaen er BETALT. Er du helt sikker på at du vil slette den permanent?";
+    } else if (invoice.status === "sent" || invoice.status === "overdue") {
+      message = "⚠️ Denne fakturaen er sendt til kunden. Er du sikker på at du vil slette den?";
+    }
+    
+    if (!confirm(message)) return;
 
     try {
       const response = await fetch(`/api/invoices/${invoiceId}`, {
@@ -291,11 +301,12 @@ export default function InvoicesPage() {
     sent: { color: "#3b82f6", bg: "rgba(59, 130, 246, 0.15)" },
     paid: { color: "#22c55e", bg: "rgba(34, 197, 94, 0.15)" },
     overdue: { color: "#ef4444", bg: "rgba(239, 68, 68, 0.15)" },
-    cancelled: { color: "#6b7280", bg: "rgba(107, 114, 128, 0.15)" }
+    cancelled: { color: "#6b7280", bg: "rgba(107, 114, 128, 0.15)" },
+    refunded: { color: "#f59e0b", bg: "rgba(245, 158, 11, 0.15)" }
   };
 
   const statusLabels: Record<string, string> = {
-    draft: "Kladd", sent: "Sendt", paid: "Betalt", overdue: "Forfalt", cancelled: "Kansellert"
+    draft: "Kladd", sent: "Sendt", paid: "Betalt", overdue: "Forfalt", cancelled: "Kansellert", refunded: "Refundert"
   };
 
   // Filter invoices
@@ -386,6 +397,7 @@ export default function InvoicesPage() {
             <option value="paid">Betalt</option>
             <option value="overdue">Forfalt</option>
             <option value="cancelled">Kansellert</option>
+            <option value="refunded">Refundert</option>
           </select>
         </div>
         {(filterOrg !== "all" || filterStatus !== "all") && (
@@ -466,22 +478,39 @@ export default function InvoicesPage() {
                         </button>
                       </>
                     )}
-                    {invoice.status === "sent" && (
-                      <button
-                        style={{ ...styles.actionBtn, color: "#22c55e" }}
-                        onClick={() => updateInvoiceStatus(invoice.id, "paid", new Date().toISOString())}
-                        title="Marker som betalt"
-                      >
-                        💰
-                      </button>
+                    {(invoice.status === "sent" || invoice.status === "overdue") && (
+                      <>
+                        <button
+                          style={{ ...styles.actionBtn, color: "#22c55e" }}
+                          onClick={() => updateInvoiceStatus(invoice.id, "paid", new Date().toISOString())}
+                          title="Marker som betalt"
+                        >
+                          💰
+                        </button>
+                        <button
+                          style={{ ...styles.actionBtn, color: "#f59e0b" }}
+                          onClick={() => {
+                            if (confirm("Vil du kansellere denne fakturaen?")) {
+                              updateInvoiceStatus(invoice.id, "cancelled");
+                            }
+                          }}
+                          title="Kanseller"
+                        >
+                          ✕
+                        </button>
+                      </>
                     )}
-                    {invoice.status === "overdue" && (
+                    {invoice.status === "paid" && (
                       <button
-                        style={{ ...styles.actionBtn, color: "#22c55e" }}
-                        onClick={() => updateInvoiceStatus(invoice.id, "paid", new Date().toISOString())}
-                        title="Marker som betalt"
+                        style={{ ...styles.actionBtn, color: "#f59e0b" }}
+                        onClick={() => {
+                          if (confirm("Vil du refundere denne fakturaen? Statusen endres til 'Refundert'.")) {
+                            updateInvoiceStatus(invoice.id, "refunded");
+                          }
+                        }}
+                        title="Refunder"
                       >
-                        💰
+                        ↩️
                       </button>
                     )}
                     <button
@@ -491,15 +520,13 @@ export default function InvoicesPage() {
                     >
                       👁
                     </button>
-                    {invoice.status === "draft" && (
-                      <button
-                        style={{ ...styles.actionBtn, color: "#ef4444" }}
-                        onClick={() => deleteInvoice(invoice.id)}
-                        title="Slett"
-                      >
-                        🗑
-                      </button>
-                    )}
+                    <button
+                      style={{ ...styles.actionBtn, color: "#ef4444" }}
+                      onClick={() => deleteInvoice(invoice.id)}
+                      title="Slett"
+                    >
+                      🗑
+                    </button>
                   </span>
                 </div>
               );

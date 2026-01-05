@@ -72,7 +72,7 @@ export async function POST(
 
   const { status, paidDate, notes, dueDate } = body;
 
-  const validStatuses = ["draft", "sent", "paid", "overdue", "cancelled"];
+  const validStatuses = ["draft", "sent", "paid", "overdue", "cancelled", "refunded"];
   if (status && !validStatuses.includes(status)) {
     return NextResponse.json(
       { error: `status must be one of: ${validStatuses.join(", ")}` },
@@ -129,7 +129,7 @@ export async function POST(
   }
 }
 
-// DELETE: Slett en faktura (kun kansellerte fakturaer)
+// DELETE: Slett en faktura
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -141,20 +141,12 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    // Sjekk at fakturaen er kansellert før sletting
     const invoice = await prisma.invoice.findUnique({
       where: { id }
     });
 
     if (!invoice) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
-    }
-
-    if (invoice.status !== "cancelled") {
-      return NextResponse.json(
-        { error: "Only cancelled invoices can be deleted" },
-        { status: 400 }
-      );
     }
 
     await prisma.invoice.delete({
