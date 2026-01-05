@@ -99,9 +99,10 @@ export default function AdminDashboard() {
       if (storedPassword) {
         setPassword(storedPassword);
         await Promise.all([
-        loadOrganizations(storedPassword),
-        loadLicenseTypePrices(storedPassword)
-      ]);
+          loadOrganizations(storedPassword),
+          loadModules(storedPassword),
+          loadLicenseTypePrices(storedPassword)
+        ]);
       }
       setLoading(false);
     } catch {
