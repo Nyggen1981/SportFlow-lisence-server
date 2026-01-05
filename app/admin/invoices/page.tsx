@@ -154,7 +154,6 @@ export default function InvoicesPage() {
       if (response.ok) {
         const data = await response.json();
         setCompanySettings(data.settings);
-        setSettingsForm(data.settings);
       }
     } catch (err) {
       console.error("Kunne ikke laste bedriftsinnstillinger:", err);
