@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { calculateMonthlyPrice, getLicensePrice, LicenseType } from "@/lib/license-config";
 import AdminLayout, { sharedStyles } from "../components/AdminLayout";
 
 type Organization = {
@@ -13,24 +12,6 @@ type Organization = {
   contactName: string | null;
   licenseType: string;
   isActive: boolean;
-  expiresAt: string;
-};
-
-type Module = {
-  id: string;
-  key: string;
-  name: string;
-  description: string | null;
-  isStandard: boolean;
-  isActive: boolean;
-  price: number | null;
-};
-
-type OrganizationModule = {
-  id: string;
-  moduleId: string;
-  isActive: boolean;
-  module: Module;
 };
 
 type Invoice = {
@@ -61,21 +42,14 @@ type CompanySettings = {
   vatNumber: string | null;
   email: string | null;
   phone: string | null;
-  website: string | null;
   address: string | null;
   postalCode: string | null;
   city: string | null;
   country: string;
   bankAccount: string | null;
-  bankName: string | null;
-  iban: string | null;
-  swift: string | null;
   logoUrl: string | null;
   invoicePrefix: string;
-  defaultDueDays: number;
   vatRate: number;
-  invoiceNote: string | null;
-  paymentTerms: string | null;
 };
 
 export default function InvoicesPage() {
@@ -88,16 +62,16 @@ export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
-  const [modules, setModules] = useState<Module[]>([]);
-  const [orgModules, setOrgModules] = useState<Record<string, OrganizationModule[]>>({});
-  const [loadingModules, setLoadingModules] = useState<Record<string, boolean>>({});
-  const [licenseTypePrices, setLicenseTypePrices] = useState<Record<string, { price: number; isOverride: boolean }>>({});
   
-  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
-  const [activeTab, setActiveTab] = useState<"info" | "invoices" | "modules">("info");
+  // Filters
+  const [filterOrg, setFilterOrg] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   
-  const [showCreateInvoice, setShowCreateInvoice] = useState(false);
-  const [invoicePeriod, setInvoicePeriod] = useState({ month: new Date().getMonth() + 1, year: new Date().getFullYear() });
+  // Modals
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createOrgId, setCreateOrgId] = useState<string>("");
+  const [createPeriod, setCreatePeriod] = useState({ month: new Date().getMonth() + 1, year: new Date().getFullYear() });
+  const [creating, setCreating] = useState(false);
   
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
@@ -119,9 +93,7 @@ export default function InvoicesPage() {
           await Promise.all([
             loadInvoices(storedPassword),
             loadOrganizations(storedPassword),
-            loadCompanySettings(storedPassword),
-            loadModules(storedPassword),
-            loadLicenseTypePrices(storedPassword)
+            loadCompanySettings(storedPassword)
           ]);
         }
         
@@ -157,13 +129,8 @@ export default function InvoicesPage() {
       if (response.ok) {
         const data = await response.json();
         setOrganizations(data.organizations || []);
-        for (const org of data.organizations || []) {
-          await loadOrgModules(org.id, adminPassword);
-        }
       }
-    } catch (err) {
-      console.error("Kunne ikke laste organisasjoner:", err);
-    }
+    } catch {}
   };
 
   const loadCompanySettings = async (adminPassword: string) => {
@@ -175,98 +142,16 @@ export default function InvoicesPage() {
         const data = await response.json();
         setCompanySettings(data.settings);
       }
-    } catch (err) {
-      console.error("Kunne ikke laste bedriftsinnstillinger:", err);
-    }
-  };
-
-  const loadModules = async (adminPassword: string) => {
-    try {
-      const response = await fetch("/api/modules/list", {
-        headers: { "x-admin-secret": adminPassword }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setModules(data.modules || []);
-      }
     } catch {}
-  };
-
-  const loadOrgModules = async (orgId: string, adminPassword: string) => {
-    try {
-      const response = await fetch(`/api/organizations/${orgId}/modules`, {
-        headers: { "x-admin-secret": adminPassword }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setOrgModules(prev => ({ ...prev, [orgId]: data.modules || [] }));
-      }
-    } catch {}
-  };
-
-  const loadLicenseTypePrices = async (adminPassword: string) => {
-    try {
-      const response = await fetch("/api/license-types/prices", {
-        headers: { "x-admin-secret": adminPassword }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const priceMap: Record<string, { price: number; isOverride: boolean }> = {};
-        data.prices.forEach((p: { licenseType: string; price: number; isOverride: boolean }) => {
-          priceMap[p.licenseType] = { price: p.price, isOverride: p.isOverride };
-        });
-        setLicenseTypePrices(priceMap);
-      }
-    } catch {}
-  };
-
-  const toggleModule = async (orgId: string, moduleId: string, isActive: boolean) => {
-    setLoadingModules(prev => ({ ...prev, [`${orgId}-${moduleId}`]: true }));
-    try {
-      const response = await fetch(`/api/organizations/${orgId}/modules`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-secret": password },
-        body: JSON.stringify({ moduleId, isActive })
-      });
-      if (response.ok) {
-        await loadOrgModules(orgId, password);
-        setSuccess("Modul oppdatert");
-        setTimeout(() => setSuccess(""), 2000);
-      }
-    } catch {}
-    setLoadingModules(prev => ({ ...prev, [`${orgId}-${moduleId}`]: false }));
-  };
-
-  const updateOrgStatus = async (org: Organization, status: string, expiresAt?: string) => {
-    try {
-      const response = await fetch("/api/license/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-secret": password },
-        body: JSON.stringify({
-          slug: org.slug,
-          isActive: status !== "inactive",
-          licenseType: status === "inactive" ? org.licenseType : status,
-          ...(expiresAt && { expiresAt })
-        })
-      });
-      if (response.ok) {
-        await loadOrganizations(password);
-        // Update selected org if it was changed
-        if (selectedOrg?.id === org.id) {
-          const updatedOrg = organizations.find(o => o.id === org.id);
-          if (updatedOrg) setSelectedOrg(updatedOrg);
-        }
-        setSuccess("Status oppdatert");
-        setTimeout(() => setSuccess(""), 3000);
-      }
-    } catch {
-      setError("Kunne ikke oppdatere status");
-    }
   };
 
   const createInvoice = async () => {
-    if (!selectedOrg) return;
+    if (!createOrgId) {
+      setError("Velg en kunde");
+      return;
+    }
     
+    setCreating(true);
     try {
       const response = await fetch("/api/invoices/create", {
         method: "POST",
@@ -275,15 +160,16 @@ export default function InvoicesPage() {
           "x-admin-secret": password
         },
         body: JSON.stringify({
-          organizationId: selectedOrg.id,
-          periodMonth: invoicePeriod.month,
-          periodYear: invoicePeriod.year
+          organizationId: createOrgId,
+          periodMonth: createPeriod.month,
+          periodYear: createPeriod.year
         })
       });
 
       if (response.ok) {
         await loadInvoices(password);
-        setShowCreateInvoice(false);
+        setShowCreateModal(false);
+        setCreateOrgId("");
         setSuccess("Faktura opprettet");
         setTimeout(() => setSuccess(""), 3000);
       } else {
@@ -292,6 +178,8 @@ export default function InvoicesPage() {
       }
     } catch {
       setError("Nettverksfeil");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -377,14 +265,6 @@ export default function InvoicesPage() {
     return new Date(2000, month - 1).toLocaleDateString("nb-NO", { month: "long" });
   };
 
-  const getOrgInvoices = (orgId: string) => invoices.filter(inv => inv.organizationId === orgId);
-
-  const getOrgOutstanding = (orgId: string) => {
-    return invoices
-      .filter(inv => inv.organizationId === orgId && (inv.status === "sent" || inv.status === "overdue"))
-      .reduce((sum, inv) => sum + inv.amount, 0);
-  };
-
   const statusColors: Record<string, { color: string; bg: string }> = {
     draft: { color: "#6b7280", bg: "rgba(107, 114, 128, 0.15)" },
     sent: { color: "#3b82f6", bg: "rgba(59, 130, 246, 0.15)" },
@@ -397,20 +277,26 @@ export default function InvoicesPage() {
     draft: "Kladd", sent: "Sendt", paid: "Betalt", overdue: "Forfalt", cancelled: "Kansellert"
   };
 
-  const licenseColors: Record<string, { color: string; bg: string }> = {
-    inactive: { color: "#6b7280", bg: "rgba(107,114,128,0.15)" },
-    pilot: { color: "#a855f7", bg: "rgba(168,85,247,0.15)" },
-    free: { color: "#22c55e", bg: "rgba(34,197,94,0.15)" },
-    standard: { color: "#3b82f6", bg: "rgba(59,130,246,0.15)" }
-  };
-
-  const licenseLabels: Record<string, string> = {
-    inactive: "Inaktiv", pilot: "Pilot", free: "Prøve", standard: "Standard"
-  };
+  // Filter invoices
+  const filteredInvoices = invoices.filter(inv => {
+    if (filterOrg !== "all" && inv.organizationId !== filterOrg) return false;
+    if (filterStatus !== "all" && inv.status !== filterStatus) return false;
+    return true;
+  }).sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime());
 
   // Stats
-  const totalOutstanding = invoices.filter(inv => inv.status === "sent" || inv.status === "overdue").reduce((sum, inv) => sum + inv.amount, 0);
+  const totalOutstanding = invoices
+    .filter(inv => inv.status === "sent" || inv.status === "overdue")
+    .reduce((sum, inv) => sum + inv.amount, 0);
   const overdueCount = invoices.filter(inv => inv.status === "overdue").length;
+  const paidThisMonth = invoices
+    .filter(inv => {
+      if (inv.status !== "paid" || !inv.paidDate) return false;
+      const paid = new Date(inv.paidDate);
+      const now = new Date();
+      return paid.getMonth() === now.getMonth() && paid.getFullYear() === now.getFullYear();
+    })
+    .reduce((sum, inv) => sum + inv.amount, 0);
 
   if (loading) {
     return (
@@ -421,371 +307,248 @@ export default function InvoicesPage() {
     );
   }
 
-  const currentLicense = selectedOrg ? (selectedOrg.isActive ? selectedOrg.licenseType : "inactive") : null;
-  const selectedOrgModules = selectedOrg ? orgModules[selectedOrg.id] || [] : [];
-  const selectedOrgInvoices = selectedOrg ? getOrgInvoices(selectedOrg.id) : [];
-  const monthlyPrice = selectedOrg ? calculateMonthlyPrice(
-    selectedOrg.licenseType as LicenseType,
-    selectedOrgModules.filter(om => om.isActive),
-    licenseTypePrices[selectedOrg.licenseType]?.price
-  ) : 0;
-
   return (
     <AdminLayout stats={[
-      { label: "utestående", value: `${totalOutstanding.toLocaleString()} kr`, color: "#ef4444" }
+      { label: "utestående", value: `${totalOutstanding.toLocaleString()} kr`, color: overdueCount > 0 ? "#ef4444" : "#3b82f6" },
+      { label: "betalt denne mnd", value: `${paidThisMonth.toLocaleString()} kr`, color: "#22c55e" }
     ]}>
-      {/* Main Content - Two Column Layout */}
-        <div style={styles.twoColumnLayout}>
-          {/* Left Panel - Customer List */}
-          <div style={styles.leftPanel}>
-            <div style={styles.panelHeader}>
-              <h2 style={styles.panelTitle}>Kunder</h2>
-            </div>
-            <div style={styles.customerList}>
-              {organizations.map(org => {
-                const isSelected = selectedOrg?.id === org.id;
-                const outstanding = getOrgOutstanding(org.id);
-                const license = org.isActive ? org.licenseType : "inactive";
-                const licenseInfo = licenseColors[license] || licenseColors.inactive;
-                
-                return (
-                  <div
-                    key={org.id}
-                    style={{
-                      ...styles.customerItem,
-                      background: isSelected ? "#1a1a1a" : "transparent",
-                      borderColor: isSelected ? "#3b82f6" : "transparent"
-                    }}
-                    onClick={() => {
-                      setSelectedOrg(org);
-                      setActiveTab("info");
-                    }}
-                  >
-                    <div style={styles.customerItemTop}>
-                      <span style={styles.customerItemName}>{org.name}</span>
-                      <span style={{ ...styles.licenseBadge, color: licenseInfo.color, background: licenseInfo.bg }}>
-                        {licenseLabels[license]}
-                      </span>
-                    </div>
-                    <div style={styles.customerItemBottom}>
-                      <span style={styles.customerItemEmail}>{org.contactEmail}</span>
-                      {outstanding > 0 && (
-                        <span style={styles.outstandingSmall}>{outstanding.toLocaleString()} kr</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+      {/* Header */}
+      <header style={sharedStyles.pageHeader}>
+        <div>
+          <h1 style={sharedStyles.pageTitle}>Fakturaer</h1>
+          <p style={sharedStyles.pageSubtitle}>{invoices.length} fakturaer totalt</p>
+        </div>
+        <button style={sharedStyles.primaryBtn} onClick={() => setShowCreateModal(true)}>
+          + Ny faktura
+        </button>
+      </header>
+
+      {/* Messages */}
+      {error && (
+        <div style={sharedStyles.errorMsg}>
+          {error}
+          <button onClick={() => setError("")} style={sharedStyles.closeBtn}>×</button>
+        </div>
+      )}
+      {success && (
+        <div style={sharedStyles.successMsg}>
+          {success}
+          <button onClick={() => setSuccess("")} style={sharedStyles.closeBtn}>×</button>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div style={styles.filters}>
+        <div style={styles.filterGroup}>
+          <label style={styles.filterLabel}>Kunde</label>
+          <select 
+            value={filterOrg} 
+            onChange={e => setFilterOrg(e.target.value)}
+            style={styles.filterSelect}
+          >
+            <option value="all">Alle kunder</option>
+            {organizations.map(org => (
+              <option key={org.id} value={org.id}>{org.name}</option>
+            ))}
+          </select>
+        </div>
+        <div style={styles.filterGroup}>
+          <label style={styles.filterLabel}>Status</label>
+          <select 
+            value={filterStatus} 
+            onChange={e => setFilterStatus(e.target.value)}
+            style={styles.filterSelect}
+          >
+            <option value="all">Alle statuser</option>
+            <option value="draft">Kladd</option>
+            <option value="sent">Sendt</option>
+            <option value="paid">Betalt</option>
+            <option value="overdue">Forfalt</option>
+            <option value="cancelled">Kansellert</option>
+          </select>
+        </div>
+        {(filterOrg !== "all" || filterStatus !== "all") && (
+          <button 
+            style={styles.clearFilters}
+            onClick={() => { setFilterOrg("all"); setFilterStatus("all"); }}
+          >
+            Nullstill filter
+          </button>
+        )}
+      </div>
+
+      {/* Invoice List */}
+      <div style={styles.invoiceList}>
+        {filteredInvoices.length === 0 ? (
+          <div style={styles.emptyState}>
+            <div style={styles.emptyIcon}>📄</div>
+            <h3>Ingen fakturaer</h3>
+            <p>{invoices.length === 0 ? "Opprett din første faktura" : "Ingen fakturaer matcher filteret"}</p>
           </div>
+        ) : (
+          <>
+            {/* Table Header */}
+            <div style={styles.tableHeader}>
+              <span style={styles.colNumber}>Fakturanr</span>
+              <span style={styles.colCustomer}>Kunde</span>
+              <span style={styles.colPeriod}>Periode</span>
+              <span style={styles.colAmount}>Beløp</span>
+              <span style={styles.colStatus}>Status</span>
+              <span style={styles.colActions}>Handlinger</span>
+            </div>
 
-          {/* Right Panel - Details */}
-          <div style={styles.rightPanel}>
-            {/* Messages */}
-            {error && (
-              <div style={styles.errorMsg}>
-                {error}
-                <button onClick={() => setError("")} style={styles.closeBtn}>×</button>
-              </div>
-            )}
-            {success && (
-              <div style={styles.successMsg}>
-                {success}
-              </div>
-            )}
-
-            {selectedOrg ? (
-              <>
-                {/* Customer Header */}
-                <div style={styles.detailHeader}>
-                  <div style={styles.detailHeaderLeft}>
-                    <div style={styles.customerAvatar}>
-                      {selectedOrg.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <h2 style={styles.detailTitle}>{selectedOrg.name}</h2>
-                      <p style={styles.detailSubtitle}>{selectedOrg.contactEmail}</p>
-                    </div>
-                  </div>
-                  <div style={styles.detailHeaderRight}>
-                    <span style={styles.priceDisplay}>{monthlyPrice} kr/mnd</span>
-                  </div>
-                </div>
-
-                {/* Tabs */}
-                <div style={styles.tabs}>
-                  <button
-                    style={activeTab === "info" ? styles.tabActive : styles.tab}
-                    onClick={() => setActiveTab("info")}
-                  >
-                    Lisens
-                  </button>
-                  <button
-                    style={activeTab === "modules" ? styles.tabActive : styles.tab}
-                    onClick={() => setActiveTab("modules")}
-                  >
-                    Moduler
-                  </button>
-                  <button
-                    style={activeTab === "invoices" ? styles.tabActive : styles.tab}
-                    onClick={() => setActiveTab("invoices")}
-                  >
-                    Fakturaer ({selectedOrgInvoices.length})
-                  </button>
-                </div>
-
-                {/* Tab Content */}
-                <div style={styles.tabContent}>
-                  {/* Lisens Tab */}
-                  {activeTab === "info" && (
-                    <div style={styles.infoTab}>
-                      <div style={styles.section}>
-                        <label style={styles.sectionLabel}>Lisenstype</label>
-                        <div style={styles.licenseGrid}>
-                          {["inactive", "pilot", "free", "standard"].map(s => {
-                            const isSelected = currentLicense === s;
-                            const colors = licenseColors[s];
-                            return (
-                              <button
-                                key={s}
-                                style={{
-                                  ...styles.licenseOption,
-                                  borderColor: isSelected ? colors.color : "#333",
-                                  background: isSelected ? colors.bg : "transparent",
-                                  color: isSelected ? colors.color : "#888"
-                                }}
-                                onClick={() => {
-                                  if (s === "inactive") {
-                                    updateOrgStatus(selectedOrg, "inactive");
-                                  } else {
-                                    const newExpiry = new Date();
-                                    newExpiry.setMonth(newExpiry.getMonth() + 1);
-                                    updateOrgStatus(selectedOrg, s, newExpiry.toISOString());
-                                  }
-                                }}
-                              >
-                                {licenseLabels[s]}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div style={styles.section}>
-                        <label style={styles.sectionLabel}>Prissammendrag</label>
-                        <div style={styles.priceSummary}>
-                          <div style={styles.priceRow}>
-                            <span>Basislisens ({licenseLabels[selectedOrg.licenseType]})</span>
-                            <span>{getLicensePrice(selectedOrg.licenseType as LicenseType, licenseTypePrices[selectedOrg.licenseType]?.price)} kr</span>
-                          </div>
-                          {selectedOrgModules.filter(om => om.isActive && om.module.price).map(om => (
-                            <div key={om.id} style={styles.priceRow}>
-                              <span>{om.module.name}</span>
-                              <span>{selectedOrg.licenseType === "pilot" ? "0 kr (pilot)" : `${om.module.price} kr`}</span>
-                            </div>
-                          ))}
-                          <div style={styles.priceTotal}>
-                            <span>Totalt</span>
-                            <span>{monthlyPrice} kr/mnd</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {selectedOrg.isActive && (
-                        <div style={styles.section}>
-                          <label style={styles.sectionLabel}>Utløpsdato</label>
-                          <input
-                            type="date"
-                            value={selectedOrg.expiresAt.split("T")[0]}
-                            onChange={async (e) => {
-                              const newDate = new Date(e.target.value);
-                              newDate.setHours(23, 59, 59, 999);
-                              await updateOrgStatus(selectedOrg, selectedOrg.licenseType, newDate.toISOString());
-                            }}
-                            style={styles.dateInput}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Moduler Tab */}
-                  {activeTab === "modules" && (
-                    <div style={styles.modulesTab}>
-                      {selectedOrg.licenseType === "pilot" && (
-                        <div style={styles.pilotNote}>✨ Pilotkunde - alle moduler er gratis</div>
-                      )}
-                      
-                      {modules.filter(m => m.key !== "booking").length === 0 ? (
-                        <p style={styles.emptyText}>Ingen tilleggsmoduler tilgjengelig</p>
-                      ) : (
-                        modules.filter(m => m.key !== "booking").map(module => {
-                          const orgModule = selectedOrgModules.find(om => om.moduleId === module.id);
-                          const isActive = orgModule?.isActive ?? module.isStandard;
-                          const isLoading = loadingModules[`${selectedOrg.id}-${module.id}`];
-                          const isPilot = selectedOrg.licenseType === "pilot";
-
-                          return (
-                            <div key={module.id} style={styles.moduleItem}>
-                              <div style={styles.moduleInfo}>
-                                <h4 style={styles.moduleName}>
-                                  {module.name}
-                                  {module.isStandard && <span style={styles.standardTag}>Standard</span>}
-                                </h4>
-                                {module.description && <p style={styles.moduleDesc}>{module.description}</p>}
-                                {module.price && (
-                                  <p style={styles.modulePrice}>
-                                    {isPilot ? "Gratis (pilot)" : `+${module.price} kr/mnd`}
-                                  </p>
-                                )}
-                              </div>
-                              <label style={styles.toggle}>
-                                <input
-                                  type="checkbox"
-                                  checked={isActive}
-                                  disabled={module.isStandard || isLoading}
-                                  onChange={e => toggleModule(selectedOrg.id, module.id, e.target.checked)}
-                                  style={styles.toggleInput}
-                                />
-                                <span style={{
-                                  ...styles.toggleTrack,
-                                  background: isActive ? "#3b82f6" : "#333"
-                                }}>
-                                  <span style={{
-                                    ...styles.toggleThumb,
-                                    transform: isActive ? "translateX(20px)" : "translateX(0)"
-                                  }} />
-                                </span>
-                              </label>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-
-                  {/* Fakturaer Tab */}
-                  {activeTab === "invoices" && (
-                    <div style={styles.invoicesTab}>
-                      <div style={styles.invoicesHeader}>
-                        <span style={styles.invoicesCount}>{selectedOrgInvoices.length} fakturaer</span>
-                        <button style={styles.addBtn} onClick={() => setShowCreateInvoice(true)}>
-                          + Ny faktura
+            {/* Invoice Rows */}
+            {filteredInvoices.map(invoice => {
+              const statusStyle = statusColors[invoice.status] || statusColors.draft;
+              
+              return (
+                <div key={invoice.id} style={styles.invoiceRow}>
+                  <span style={styles.colNumber}>
+                    <button 
+                      style={styles.invoiceLink}
+                      onClick={() => setPreviewInvoice(invoice)}
+                    >
+                      {invoice.invoiceNumber}
+                    </button>
+                  </span>
+                  <span style={styles.colCustomer}>
+                    <span style={styles.customerName}>{invoice.organization.name}</span>
+                  </span>
+                  <span style={styles.colPeriod}>
+                    {getMonthName(invoice.periodMonth)} {invoice.periodYear}
+                  </span>
+                  <span style={styles.colAmount}>
+                    {invoice.amount.toLocaleString()} kr
+                  </span>
+                  <span style={styles.colStatus}>
+                    <span style={{ ...styles.statusBadge, color: statusStyle.color, background: statusStyle.bg }}>
+                      {statusLabels[invoice.status]}
+                    </span>
+                  </span>
+                  <span style={styles.colActions}>
+                    {invoice.status === "draft" && (
+                      <>
+                        <button
+                          style={styles.actionBtn}
+                          onClick={() => sendInvoiceByEmail(invoice)}
+                          disabled={sendingEmail === invoice.id}
+                          title="Send på e-post"
+                        >
+                          {sendingEmail === invoice.id ? "..." : "📧"}
                         </button>
-                      </div>
-
-                      {showCreateInvoice && (
-                        <div style={styles.createForm}>
-                          <div style={styles.createFormRow}>
-                            <select
-                              value={invoicePeriod.month}
-                              onChange={(e) => setInvoicePeriod({ ...invoicePeriod, month: parseInt(e.target.value) })}
-                              style={styles.select}
-                            >
-                              {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                                <option key={month} value={month}>{getMonthName(month)}</option>
-                              ))}
-                            </select>
-                            <select
-                              value={invoicePeriod.year}
-                              onChange={(e) => setInvoicePeriod({ ...invoicePeriod, year: parseInt(e.target.value) })}
-                              style={styles.select}
-                            >
-                              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
-                                <option key={year} value={year}>{year}</option>
-                              ))}
-                            </select>
-                            <button onClick={createInvoice} style={styles.primaryBtn}>Opprett</button>
-                            <button onClick={() => setShowCreateInvoice(false)} style={styles.cancelBtn}>Avbryt</button>
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedOrgInvoices.length === 0 ? (
-                        <p style={styles.emptyText}>Ingen fakturaer ennå</p>
-                      ) : (
-                        <div style={styles.invoiceList}>
-                          {selectedOrgInvoices.map(invoice => {
-                            const statusInfo = statusColors[invoice.status];
-                            const isOverdue = new Date(invoice.dueDate) < new Date() && invoice.status === "sent";
-                            
-                            return (
-                              <div key={invoice.id} style={styles.invoiceItem}>
-                                <div style={styles.invoiceMain}>
-                                  <div style={styles.invoiceLeft}>
-                                    <span style={styles.invoiceNum}>{invoice.invoiceNumber}</span>
-                                    <span style={styles.invoicePeriod}>
-                                      {getMonthName(invoice.periodMonth)} {invoice.periodYear}
-                                    </span>
-                                  </div>
-                                  <div style={styles.invoiceCenter}>
-                                    <span style={styles.invoiceAmount}>{invoice.amount.toLocaleString()} kr</span>
-                                    <span style={{ ...styles.invoiceDue, color: isOverdue ? "#ef4444" : "#666" }}>
-                                      {formatDate(invoice.dueDate)}
-                                    </span>
-                                  </div>
-                                  <div style={styles.invoiceRight}>
-                                    <span style={{ ...styles.statusBadge, color: statusInfo.color, background: statusInfo.bg }}>
-                                      {statusLabels[invoice.status]}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div style={styles.invoiceActions}>
-                                  <button onClick={() => setPreviewInvoice(invoice)} style={styles.actionBtn}>Vis</button>
-                                  {(invoice.status === "draft" || invoice.status === "sent") && (
-                                    <button
-                                      onClick={() => sendInvoiceByEmail(invoice)}
-                                      disabled={sendingEmail === invoice.id}
-                                      style={styles.actionBtn}
-                                    >
-                                      {sendingEmail === invoice.id ? "..." : "Send"}
-                                    </button>
-                                  )}
-                                  {invoice.status === "draft" && (
-                                    <button onClick={() => updateInvoiceStatus(invoice.id, "sent")} style={styles.actionBtn}>
-                                      Marker sendt
-                                    </button>
-                                  )}
-                                  {(invoice.status === "sent" || invoice.status === "overdue") && (
-                                    <button
-                                      onClick={() => updateInvoiceStatus(invoice.id, "paid", new Date().toISOString())}
-                                      style={{ ...styles.actionBtn, color: "#22c55e" }}
-                                    >
-                                      Betalt
-                                    </button>
-                                  )}
-                                  {invoice.status !== "paid" && invoice.status !== "cancelled" && (
-                                    <button
-                                      onClick={() => updateInvoiceStatus(invoice.id, "cancelled")}
-                                      style={{ ...styles.actionBtn, color: "#ef4444" }}
-                                    >
-                                      Kanseller
-                                    </button>
-                                  )}
-                                  {invoice.status === "cancelled" && (
-                                    <button onClick={() => deleteInvoice(invoice.id)} style={{ ...styles.actionBtn, color: "#7f1d1d" }}>
-                                      Slett
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        <button
+                          style={styles.actionBtn}
+                          onClick={() => updateInvoiceStatus(invoice.id, "sent")}
+                          title="Marker som sendt"
+                        >
+                          ✓
+                        </button>
+                      </>
+                    )}
+                    {invoice.status === "sent" && (
+                      <button
+                        style={{ ...styles.actionBtn, color: "#22c55e" }}
+                        onClick={() => updateInvoiceStatus(invoice.id, "paid", new Date().toISOString())}
+                        title="Marker som betalt"
+                      >
+                        💰
+                      </button>
+                    )}
+                    {invoice.status === "overdue" && (
+                      <button
+                        style={{ ...styles.actionBtn, color: "#22c55e" }}
+                        onClick={() => updateInvoiceStatus(invoice.id, "paid", new Date().toISOString())}
+                        title="Marker som betalt"
+                      >
+                        💰
+                      </button>
+                    )}
+                    <button
+                      style={styles.actionBtn}
+                      onClick={() => setPreviewInvoice(invoice)}
+                      title="Vis faktura"
+                    >
+                      👁
+                    </button>
+                    {invoice.status === "draft" && (
+                      <button
+                        style={{ ...styles.actionBtn, color: "#ef4444" }}
+                        onClick={() => deleteInvoice(invoice.id)}
+                        title="Slett"
+                      >
+                        🗑
+                      </button>
+                    )}
+                  </span>
                 </div>
-              </>
-            ) : (
-              <div style={styles.emptyState}>
-                <div style={styles.emptyIcon}>👈</div>
-                <h3>Velg en kunde</h3>
-                <p>Velg en kunde fra listen til venstre for å se detaljer</p>
+              );
+            })}
+          </>
+        )}
+      </div>
+
+      {/* Create Invoice Modal */}
+      {showCreateModal && (
+        <div style={styles.modalOverlay} onClick={() => setShowCreateModal(false)}>
+          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+            <h2 style={styles.modalTitle}>Ny faktura</h2>
+            
+            <div style={styles.formGroup}>
+              <label style={styles.formLabel}>Kunde *</label>
+              <select
+                value={createOrgId}
+                onChange={e => setCreateOrgId(e.target.value)}
+                style={styles.formSelect}
+              >
+                <option value="">Velg kunde...</option>
+                {organizations.filter(o => o.isActive).map(org => (
+                  <option key={org.id} value={org.id}>{org.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={styles.formRow}>
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>Måned</label>
+                <select
+                  value={createPeriod.month}
+                  onChange={e => setCreatePeriod({ ...createPeriod, month: parseInt(e.target.value) })}
+                  style={styles.formSelect}
+                >
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>{getMonthName(i + 1)}</option>
+                  ))}
+                </select>
               </div>
-            )}
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>År</label>
+                <select
+                  value={createPeriod.year}
+                  onChange={e => setCreatePeriod({ ...createPeriod, year: parseInt(e.target.value) })}
+                  style={styles.formSelect}
+                >
+                  {[2024, 2025, 2026].map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={styles.modalActions}>
+              <button style={styles.cancelBtn} onClick={() => setShowCreateModal(false)}>
+                Avbryt
+              </button>
+              <button 
+                style={sharedStyles.primaryBtn} 
+                onClick={createInvoice}
+                disabled={creating || !createOrgId}
+              >
+                {creating ? "Oppretter..." : "Opprett faktura"}
+              </button>
+            </div>
           </div>
         </div>
+      )}
 
       {/* Invoice Preview Modal */}
       {previewInvoice && companySettings && (
@@ -808,7 +571,7 @@ export default function InvoicesPage() {
                       }).from(invoiceEl).save();
                     }
                   }}
-                  style={styles.downloadButton}
+                  style={styles.downloadBtn}
                 >
                   📄 PDF
                 </button>
@@ -826,58 +589,66 @@ export default function InvoicesPage() {
                       <div style={styles.invLogoPlaceholder}>{companySettings.companyName?.charAt(0) || "S"}</div>
                     )}
                   </div>
-                  <div style={styles.invCompanySection}>
-                    <div style={styles.invFakturaTitle}>FAKTURA</div>
-                    <p style={styles.invCompanyName}>{companySettings.companyName}</p>
-                    {companySettings.address && <p style={styles.invCompanyLine}>{companySettings.address}</p>}
-                    {(companySettings.postalCode || companySettings.city) && (
-                      <p style={styles.invCompanyLine}>{companySettings.postalCode} {companySettings.city}</p>
-                    )}
+                  <div style={styles.invHeaderRight}>
+                    <h1 style={styles.invTitle}>FAKTURA</h1>
+                    <p style={styles.invNumber}>{previewInvoice.invoiceNumber}</p>
                   </div>
                 </div>
 
-                <div style={styles.invDetailsRow}>
-                  <div>
-                    <p style={styles.invRecipientName}>{previewInvoice.organization.name}</p>
-                    {previewInvoice.organization.contactName && (
-                      <p style={styles.invRecipientLine}>v/ {previewInvoice.organization.contactName}</p>
-                    )}
-                    <p style={styles.invRecipientLine}>{previewInvoice.organization.contactEmail}</p>
+                <div style={styles.invMeta}>
+                  <div style={styles.invMetaSection}>
+                    <p style={styles.invMetaLabel}>Fra:</p>
+                    <p style={styles.invMetaValue}>{companySettings.companyName}</p>
+                    {companySettings.address && <p style={styles.invMetaSmall}>{companySettings.address}</p>}
+                    {companySettings.postalCode && <p style={styles.invMetaSmall}>{companySettings.postalCode} {companySettings.city}</p>}
+                    {companySettings.orgNumber && <p style={styles.invMetaSmall}>Org.nr: {companySettings.orgNumber}</p>}
                   </div>
-                  <div style={styles.invMeta}>
-                    <p>Fakturadato: <strong>{formatDate(previewInvoice.invoiceDate)}</strong></p>
-                    <p>Fakturanr: <strong>{previewInvoice.invoiceNumber.replace("INV-", "")}</strong></p>
-                    <p>Forfallsdato: <strong style={{ color: "#dc2626" }}>{formatDate(previewInvoice.dueDate)}</strong></p>
+                  <div style={styles.invMetaSection}>
+                    <p style={styles.invMetaLabel}>Til:</p>
+                    <p style={styles.invMetaValue}>{previewInvoice.organization.name}</p>
+                    <p style={styles.invMetaSmall}>{previewInvoice.organization.contactEmail}</p>
+                    {previewInvoice.organization.contactName && (
+                      <p style={styles.invMetaSmall}>v/ {previewInvoice.organization.contactName}</p>
+                    )}
+                  </div>
+                  <div style={styles.invMetaSection}>
+                    <p style={styles.invMetaLabel}>Fakturadato:</p>
+                    <p style={styles.invMetaValue}>{formatDate(previewInvoice.invoiceDate)}</p>
+                    <p style={styles.invMetaLabel}>Forfallsdato:</p>
+                    <p style={styles.invMetaValue}>{formatDate(previewInvoice.dueDate)}</p>
                   </div>
                 </div>
 
                 <div style={styles.invTable}>
                   <div style={styles.invTableHeader}>
-                    <span style={{ flex: 1 }}>BESKRIVELSE</span>
-                    <span style={{ width: 80, textAlign: "right" }}>BELØP</span>
+                    <span style={{ flex: 3 }}>Beskrivelse</span>
+                    <span style={{ flex: 1, textAlign: "right" }}>Beløp</span>
                   </div>
                   <div style={styles.invTableRow}>
-                    <span style={{ flex: 1 }}>SportFlow Booking - {previewInvoice.licenseTypeName}</span>
-                    <span style={{ width: 80, textAlign: "right" }}>{previewInvoice.basePrice.toLocaleString()} kr</span>
+                    <span style={{ flex: 3 }}>
+                      {previewInvoice.licenseTypeName} - {getMonthName(previewInvoice.periodMonth)} {previewInvoice.periodYear}
+                    </span>
+                    <span style={{ flex: 1, textAlign: "right" }}>{previewInvoice.basePrice.toLocaleString()} kr</span>
                   </div>
-                  {previewInvoice.modules && (() => {
-                    try {
-                      return JSON.parse(previewInvoice.modules).map((mod: { key: string; name: string; price: number }) => (
-                        <div key={mod.key} style={styles.invTableRow}>
-                          <span style={{ flex: 1 }}>Tilleggsmodul: {mod.name}</span>
-                          <span style={{ width: 80, textAlign: "right" }}>{mod.price.toLocaleString()} kr</span>
-                        </div>
-                      ));
-                    } catch { return null; }
-                  })()}
+                  {previewInvoice.modules && JSON.parse(previewInvoice.modules).map((mod: { name: string; price: number }, i: number) => (
+                    <div key={i} style={styles.invTableRow}>
+                      <span style={{ flex: 3 }}>{mod.name}</span>
+                      <span style={{ flex: 1, textAlign: "right" }}>{mod.price.toLocaleString()} kr</span>
+                    </div>
+                  ))}
+                  {previewInvoice.vatAmount > 0 && (
+                    <div style={styles.invTableRow}>
+                      <span style={{ flex: 3 }}>MVA ({companySettings.vatRate}%)</span>
+                      <span style={{ flex: 1, textAlign: "right" }}>{previewInvoice.vatAmount.toLocaleString()} kr</span>
+                    </div>
+                  )}
+                  <div style={styles.invTableTotal}>
+                    <span style={{ flex: 3 }}>Totalt å betale</span>
+                    <span style={{ flex: 1, textAlign: "right", fontWeight: "bold" }}>{previewInvoice.amount.toLocaleString()} kr</span>
+                  </div>
                 </div>
 
-                <div style={styles.invGrandTotal}>
-                  <span>Å BETALE</span>
-                  <span>{previewInvoice.amount.toLocaleString("nb-NO", { minimumFractionDigits: 2 })} kr</span>
-                </div>
-
-                <div style={styles.invPaymentSection}>
+                <div style={styles.invPayment}>
                   <p><strong>Bankkonto:</strong> {companySettings.bankAccount}</p>
                   <p><strong>Merk betaling med:</strong> {previewInvoice.invoiceNumber.replace("INV-", "")}</p>
                 </div>
@@ -895,647 +666,333 @@ export default function InvoicesPage() {
 }
 
 const styles: { [key: string]: React.CSSProperties } = {
-  // Two Column Layout
-  twoColumnLayout: {
-    display: "grid",
-    gridTemplateColumns: "240px 1fr",
+  // Filters
+  filters: {
+    display: "flex",
     gap: "1rem",
-    height: "calc(100vh - 120px)",
+    alignItems: "flex-end",
+    marginBottom: "1.5rem",
+    flexWrap: "wrap",
   },
-
-  // Left Panel
-  leftPanel: {
-    background: "#111",
-    borderRadius: "10px",
-    border: "1px solid #222",
+  filterGroup: {
     display: "flex",
     flexDirection: "column",
-    overflow: "hidden",
+    gap: "0.4rem",
   },
-  panelHeader: {
-    padding: "1rem",
-    borderBottom: "1px solid #222",
-  },
-  panelTitle: {
-    fontSize: "0.9rem",
-    fontWeight: "600",
-    margin: 0,
-  },
-  customerList: {
-    flex: 1,
-    overflowY: "auto",
-    padding: "0.5rem",
-  },
-  customerItem: {
-    padding: "0.75rem",
-    borderRadius: "6px",
-    cursor: "pointer",
-    border: "1px solid transparent",
-    marginBottom: "0.25rem",
-  },
-  customerItemTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "0.25rem",
-  },
-  customerItemName: {
-    fontSize: "0.85rem",
-    fontWeight: "500",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    maxWidth: "140px",
-  },
-  customerItemBottom: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  customerItemEmail: {
-    fontSize: "0.7rem",
-    color: "#666",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    maxWidth: "140px",
-  },
-  licenseBadge: {
-    padding: "0.2rem 0.4rem",
-    borderRadius: "4px",
-    fontSize: "0.65rem",
-    fontWeight: "500",
-  },
-  outstandingSmall: {
-    fontSize: "0.7rem",
-    color: "#ef4444",
-    fontWeight: "500",
-  },
-
-  // Right Panel
-  rightPanel: {
-    background: "#111",
-    borderRadius: "10px",
-    border: "1px solid #222",
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-  },
-  errorMsg: {
-    display: "flex",
-    justifyContent: "space-between",
-    padding: "0.6rem 0.75rem",
-    background: "rgba(239,68,68,0.1)",
-    border: "1px solid rgba(239,68,68,0.3)",
-    color: "#f87171",
-    fontSize: "0.8rem",
-    margin: "0.75rem",
-    borderRadius: "6px",
-  },
-  successMsg: {
-    padding: "0.6rem 0.75rem",
-    background: "rgba(34,197,94,0.1)",
-    border: "1px solid rgba(34,197,94,0.3)",
-    color: "#4ade80",
-    fontSize: "0.8rem",
-    margin: "0.75rem",
-    borderRadius: "6px",
-  },
-  closeBtn: {
-    background: "none",
-    border: "none",
-    color: "inherit",
-    cursor: "pointer",
-    fontSize: "1rem",
-  },
-  detailHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "1rem 1.25rem",
-    borderBottom: "1px solid #222",
-  },
-  detailHeaderLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.75rem",
-  },
-  customerAvatar: {
-    width: "40px",
-    height: "40px",
-    borderRadius: "8px",
-    background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "1rem",
-    fontWeight: "600",
-  },
-  detailTitle: {
-    fontSize: "1rem",
-    fontWeight: "600",
-    margin: 0,
-  },
-  detailSubtitle: {
-    fontSize: "0.75rem",
-    color: "#666",
-    margin: "0.15rem 0 0 0",
-  },
-  detailHeaderRight: {},
-  priceDisplay: {
-    fontSize: "1rem",
-    fontWeight: "600",
-    color: "#22c55e",
-  },
-
-  // Tabs
-  tabs: {
-    display: "flex",
-    borderBottom: "1px solid #222",
-    padding: "0 1rem",
-  },
-  tab: {
-    padding: "0.75rem 1rem",
-    background: "transparent",
-    border: "none",
-    borderBottom: "2px solid transparent",
-    color: "#666",
-    fontSize: "0.8rem",
-    cursor: "pointer",
-  },
-  tabActive: {
-    padding: "0.75rem 1rem",
-    background: "transparent",
-    border: "none",
-    borderBottom: "2px solid #3b82f6",
-    color: "#3b82f6",
-    fontSize: "0.8rem",
-    cursor: "pointer",
-    fontWeight: "500",
-  },
-  tabContent: {
-    flex: 1,
-    overflowY: "auto",
-    padding: "1rem 1.25rem",
-  },
-
-  // Info Tab
-  infoTab: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "1.25rem",
-  },
-  section: {},
-  sectionLabel: {
-    display: "block",
+  filterLabel: {
     fontSize: "0.7rem",
     color: "#666",
     textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    marginBottom: "0.5rem",
   },
-  licenseGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
-    gap: "0.5rem",
+  filterSelect: {
+    padding: "0.5rem 0.75rem",
+    background: "#111",
+    border: "1px solid #333",
+    borderRadius: "6px",
+    color: "#fff",
+    fontSize: "0.85rem",
+    minWidth: "160px",
   },
-  licenseOption: {
-    padding: "0.5rem",
+  clearFilters: {
+    padding: "0.5rem 0.75rem",
     background: "transparent",
     border: "1px solid #333",
     borderRadius: "6px",
     color: "#888",
-    fontSize: "0.75rem",
-    cursor: "pointer",
-  },
-  priceSummary: {
-    background: "#0a0a0a",
-    borderRadius: "6px",
-    padding: "0.75rem",
-  },
-  priceRow: {
-    display: "flex",
-    justifyContent: "space-between",
     fontSize: "0.8rem",
-    color: "#888",
-    padding: "0.3rem 0",
-  },
-  priceTotal: {
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: "0.85rem",
-    color: "#22c55e",
-    fontWeight: "600",
-    paddingTop: "0.5rem",
-    marginTop: "0.5rem",
-    borderTop: "1px solid #222",
-  },
-  infoValue: {
-    fontSize: "0.85rem",
-    color: "#fff",
-    margin: 0,
-  },
-  dateInput: {
-    padding: "0.5rem 0.75rem",
-    background: "#0a0a0a",
-    border: "1px solid #333",
-    borderRadius: "6px",
-    color: "#fff",
-    fontSize: "0.85rem",
     cursor: "pointer",
-    width: "100%",
-  },
-  // Modules Tab
-  modulesTab: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.5rem",
-  },
-  pilotNote: {
-    fontSize: "0.8rem",
-    color: "#a855f7",
-    background: "rgba(168,85,247,0.1)",
-    padding: "0.6rem 0.75rem",
-    borderRadius: "6px",
-    marginBottom: "0.5rem",
-    textAlign: "center",
-  },
-  emptyText: {
-    color: "#666",
-    fontSize: "0.85rem",
-    textAlign: "center",
-    padding: "2rem",
-  },
-  moduleItem: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "0.75rem",
-    background: "#0a0a0a",
-    borderRadius: "6px",
-  },
-  moduleInfo: {},
-  moduleName: {
-    fontSize: "0.85rem",
-    fontWeight: "500",
-    margin: 0,
-    display: "flex",
-    alignItems: "center",
-    gap: "0.4rem",
-  },
-  standardTag: {
-    fontSize: "0.6rem",
-    padding: "0.15rem 0.3rem",
-    background: "rgba(59,130,246,0.2)",
-    color: "#60a5fa",
-    borderRadius: "3px",
-  },
-  moduleDesc: {
-    fontSize: "0.75rem",
-    color: "#666",
-    margin: "0.2rem 0 0 0",
-  },
-  modulePrice: {
-    fontSize: "0.75rem",
-    color: "#22c55e",
-    margin: "0.2rem 0 0 0",
-  },
-  toggle: {
-    position: "relative",
-    cursor: "pointer",
-  },
-  toggleInput: {
-    opacity: 0,
-    width: 0,
-    height: 0,
-    position: "absolute",
-  },
-  toggleTrack: {
-    display: "block",
-    width: "40px",
-    height: "22px",
-    borderRadius: "11px",
-    position: "relative",
-    transition: "background 0.2s",
-  },
-  toggleThumb: {
-    position: "absolute",
-    top: "2px",
-    left: "2px",
-    width: "18px",
-    height: "18px",
-    background: "#fff",
-    borderRadius: "50%",
-    transition: "transform 0.2s",
   },
 
-  // Invoices Tab
-  invoicesTab: {},
-  invoicesHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "1rem",
-  },
-  invoicesCount: {
-    fontSize: "0.8rem",
-    color: "#666",
-  },
-  addBtn: {
-    padding: "0.4rem 0.75rem",
-    background: "#3b82f6",
-    border: "none",
-    borderRadius: "5px",
-    color: "#fff",
-    fontSize: "0.75rem",
-    cursor: "pointer",
-  },
-  createForm: {
-    background: "#0a0a0a",
-    borderRadius: "6px",
-    padding: "0.75rem",
-    marginBottom: "1rem",
-  },
-  createFormRow: {
-    display: "flex",
-    gap: "0.5rem",
-    alignItems: "center",
-    flexWrap: "wrap",
-  },
-  select: {
-    padding: "0.5rem",
-    background: "#1a1a1a",
-    border: "1px solid #333",
-    borderRadius: "5px",
-    color: "#fff",
-    fontSize: "0.8rem",
-  },
-  primaryBtn: {
-    padding: "0.5rem 0.75rem",
-    background: "#3b82f6",
-    border: "none",
-    borderRadius: "5px",
-    color: "#fff",
-    fontSize: "0.8rem",
-    cursor: "pointer",
-  },
-  cancelBtn: {
-    padding: "0.5rem 0.75rem",
-    background: "transparent",
-    border: "1px solid #333",
-    borderRadius: "5px",
-    color: "#888",
-    fontSize: "0.8rem",
-    cursor: "pointer",
-  },
+  // Invoice List
   invoiceList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.5rem",
+    background: "#111",
+    borderRadius: "10px",
+    border: "1px solid #222",
+    overflow: "hidden",
   },
-  invoiceItem: {
-    background: "#0a0a0a",
-    borderRadius: "6px",
-    padding: "0.75rem",
-  },
-  invoiceMain: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "0.5rem",
-  },
-  invoiceLeft: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.15rem",
-  },
-  invoiceNum: {
-    fontSize: "0.85rem",
-    fontWeight: "500",
-  },
-  invoicePeriod: {
-    fontSize: "0.7rem",
-    color: "#666",
-  },
-  invoiceCenter: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "0.15rem",
-  },
-  invoiceAmount: {
-    fontSize: "0.9rem",
-    fontWeight: "600",
-  },
-  invoiceDue: {
-    fontSize: "0.7rem",
-  },
-  invoiceRight: {},
-  statusBadge: {
-    padding: "0.2rem 0.5rem",
-    borderRadius: "4px",
-    fontSize: "0.7rem",
-    fontWeight: "500",
-  },
-  invoiceActions: {
-    display: "flex",
-    gap: "0.4rem",
-    flexWrap: "wrap",
-  },
-  actionBtn: {
-    padding: "0.3rem 0.5rem",
-    background: "#222",
-    border: "none",
-    borderRadius: "4px",
-    color: "#fff",
-    fontSize: "0.7rem",
-    cursor: "pointer",
-  },
-
-  // Empty State
   emptyState: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
+    textAlign: "center",
+    padding: "3rem 2rem",
     color: "#666",
   },
   emptyIcon: {
     fontSize: "2.5rem",
-    marginBottom: "0.75rem",
+    marginBottom: "1rem",
+  },
+  tableHeader: {
+    display: "grid",
+    gridTemplateColumns: "120px 1fr 140px 100px 100px 140px",
+    gap: "0.5rem",
+    padding: "0.75rem 1rem",
+    background: "#0a0a0a",
+    borderBottom: "1px solid #222",
+    fontSize: "0.7rem",
+    color: "#666",
+    textTransform: "uppercase",
+    fontWeight: "600",
+  },
+  invoiceRow: {
+    display: "grid",
+    gridTemplateColumns: "120px 1fr 140px 100px 100px 140px",
+    gap: "0.5rem",
+    padding: "0.85rem 1rem",
+    borderBottom: "1px solid #1a1a1a",
+    alignItems: "center",
+    fontSize: "0.85rem",
+  },
+  colNumber: {},
+  colCustomer: {},
+  colPeriod: { color: "#888" },
+  colAmount: { fontWeight: "500" },
+  colStatus: {},
+  colActions: {
+    display: "flex",
+    gap: "0.25rem",
+  },
+  invoiceLink: {
+    background: "none",
+    border: "none",
+    color: "#3b82f6",
+    cursor: "pointer",
+    fontSize: "0.85rem",
+    fontWeight: "500",
+  },
+  customerName: {
+    fontWeight: "500",
+  },
+  statusBadge: {
+    padding: "0.25rem 0.5rem",
+    borderRadius: "4px",
+    fontSize: "0.75rem",
+    fontWeight: "500",
+  },
+  actionBtn: {
+    padding: "0.35rem 0.5rem",
+    background: "#1a1a1a",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: "0.8rem",
   },
 
   // Modal
   modalOverlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0, 0, 0, 0.85)",
+    background: "rgba(0,0,0,0.8)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 1000,
-    padding: "2rem",
+    zIndex: 50,
+    padding: "1rem",
   },
+  modal: {
+    background: "#111",
+    borderRadius: "12px",
+    border: "1px solid #222",
+    padding: "1.5rem",
+    width: "100%",
+    maxWidth: "400px",
+  },
+  modalTitle: {
+    fontSize: "1.1rem",
+    fontWeight: "600",
+    margin: "0 0 1.25rem 0",
+  },
+  formGroup: {
+    marginBottom: "1rem",
+    flex: 1,
+  },
+  formRow: {
+    display: "flex",
+    gap: "1rem",
+  },
+  formLabel: {
+    display: "block",
+    marginBottom: "0.4rem",
+    fontSize: "0.8rem",
+    color: "#888",
+  },
+  formSelect: {
+    width: "100%",
+    padding: "0.6rem 0.75rem",
+    background: "#0a0a0a",
+    border: "1px solid #333",
+    borderRadius: "6px",
+    color: "#fff",
+    fontSize: "0.85rem",
+  },
+  modalActions: {
+    display: "flex",
+    gap: "0.75rem",
+    marginTop: "1.5rem",
+    justifyContent: "flex-end",
+  },
+  cancelBtn: {
+    padding: "0.6rem 1rem",
+    background: "transparent",
+    border: "1px solid #333",
+    borderRadius: "6px",
+    color: "#888",
+    cursor: "pointer",
+    fontSize: "0.85rem",
+  },
+
+  // Preview Modal
   previewModal: {
     background: "#111",
-    borderRadius: "10px",
-    maxWidth: "700px",
-    width: "100%",
-    maxHeight: "90vh",
-    overflow: "auto",
+    borderRadius: "12px",
     border: "1px solid #222",
+    width: "100%",
+    maxWidth: "700px",
+    maxHeight: "90vh",
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
   },
   previewHeader: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: "0.75rem 1rem",
+    padding: "1rem 1.25rem",
     borderBottom: "1px solid #222",
-    position: "sticky",
-    top: 0,
-    background: "#111",
   },
   previewTitle: {
-    fontSize: "0.95rem",
+    fontSize: "1rem",
     fontWeight: "600",
     margin: 0,
   },
   previewActions: {
     display: "flex",
-    alignItems: "center",
-    gap: "0.4rem",
+    gap: "0.5rem",
   },
-  downloadButton: {
-    padding: "0.35rem 0.6rem",
+  downloadBtn: {
+    padding: "0.4rem 0.75rem",
     background: "#3b82f6",
-    color: "#fff",
     border: "none",
-    borderRadius: "4px",
+    borderRadius: "5px",
+    color: "#fff",
     cursor: "pointer",
-    fontSize: "0.75rem",
+    fontSize: "0.8rem",
   },
   modalCloseBtn: {
-    padding: "0.35rem 0.5rem",
-    background: "none",
+    padding: "0.4rem 0.6rem",
+    background: "#222",
     border: "none",
+    borderRadius: "5px",
     color: "#888",
-    fontSize: "1.1rem",
     cursor: "pointer",
+    fontSize: "1rem",
   },
   invoicePreview: {
     padding: "1rem",
+    overflowY: "auto",
+    flex: 1,
   },
   invoiceDocument: {
     background: "#fff",
-    color: "#1a1a1a",
-    borderRadius: "4px",
-    fontFamily: "'Segoe UI', sans-serif",
-    fontSize: "10px",
-    lineHeight: "1.4",
-    padding: "30px",
+    color: "#000",
+    padding: "2rem",
+    borderRadius: "8px",
+    fontSize: "14px",
+    lineHeight: 1.5,
   },
   invHeader: {
     display: "flex",
     justifyContent: "space-between",
-    marginBottom: "20px",
+    alignItems: "flex-start",
+    marginBottom: "2rem",
   },
   invLogo: {
     maxWidth: "150px",
-    maxHeight: "50px",
-    objectFit: "contain",
+    maxHeight: "60px",
   },
   invLogoPlaceholder: {
-    width: "50px",
-    height: "50px",
+    width: "60px",
+    height: "60px",
     background: "#3b82f6",
+    color: "#fff",
+    borderRadius: "8px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    color: "#fff",
-    fontSize: "20px",
-    fontWeight: "700",
-    borderRadius: "6px",
+    fontSize: "24px",
+    fontWeight: "bold",
   },
-  invCompanySection: {
+  invHeaderRight: {
     textAlign: "right",
   },
-  invFakturaTitle: {
-    fontSize: "20px",
-    fontWeight: "700",
-    marginBottom: "6px",
-    letterSpacing: "1px",
+  invTitle: {
+    fontSize: "28px",
+    fontWeight: "bold",
+    margin: 0,
+    color: "#333",
   },
-  invCompanyName: {
-    fontSize: "11px",
-    fontWeight: "600",
-    margin: "0 0 2px 0",
-  },
-  invCompanyLine: {
-    fontSize: "9px",
+  invNumber: {
+    fontSize: "14px",
     color: "#666",
-    margin: "1px 0",
-  },
-  invDetailsRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "15px",
-    paddingBottom: "12px",
-    borderBottom: "1px solid #e5e7eb",
-  },
-  invRecipientName: {
-    fontSize: "11px",
-    fontWeight: "600",
-    margin: "0 0 3px 0",
-  },
-  invRecipientLine: {
-    fontSize: "9px",
-    color: "#666",
-    margin: "1px 0",
+    margin: "0.25rem 0 0 0",
   },
   invMeta: {
-    textAlign: "right",
-    fontSize: "9px",
+    display: "flex",
+    gap: "2rem",
+    marginBottom: "2rem",
+    paddingBottom: "1.5rem",
+    borderBottom: "1px solid #eee",
+  },
+  invMetaSection: {
+    flex: 1,
+  },
+  invMetaLabel: {
+    fontSize: "12px",
+    color: "#888",
+    margin: "0.75rem 0 0.25rem 0",
+  },
+  invMetaValue: {
+    fontSize: "14px",
+    fontWeight: "500",
+    margin: 0,
+  },
+  invMetaSmall: {
+    fontSize: "13px",
+    color: "#666",
+    margin: "0.15rem 0 0 0",
   },
   invTable: {
-    marginBottom: "12px",
+    marginBottom: "2rem",
   },
   invTableHeader: {
     display: "flex",
-    padding: "5px 0",
-    borderBottom: "1px solid #d1d5db",
-    fontSize: "8px",
+    padding: "0.75rem",
+    background: "#f5f5f5",
     fontWeight: "600",
-    color: "#666",
-    textTransform: "uppercase",
+    fontSize: "12px",
+    borderRadius: "4px 4px 0 0",
   },
   invTableRow: {
     display: "flex",
-    padding: "8px 0",
-    borderBottom: "1px solid #f3f4f6",
-    fontSize: "9px",
+    padding: "0.75rem",
+    borderBottom: "1px solid #eee",
   },
-  invGrandTotal: {
+  invTableTotal: {
     display: "flex",
-    justifyContent: "space-between",
-    padding: "10px 0",
-    borderTop: "2px solid #1a1a1a",
-    fontSize: "13px",
-    fontWeight: "700",
-    marginTop: "6px",
+    padding: "0.75rem",
+    background: "#f8f8f8",
+    fontWeight: "600",
+    borderRadius: "0 0 4px 4px",
   },
-  invPaymentSection: {
-    marginTop: "15px",
-    paddingTop: "12px",
-    borderTop: "1px solid #e5e7eb",
-    fontSize: "9px",
+  invPayment: {
+    background: "#f5f8ff",
+    padding: "1rem",
+    borderRadius: "6px",
+    marginBottom: "1.5rem",
+    fontSize: "13px",
   },
   invFooter: {
-    marginTop: "20px",
-    paddingTop: "10px",
-    borderTop: "1px solid #e5e7eb",
-    fontSize: "8px",
-    color: "#999",
     textAlign: "center",
+    color: "#888",
+    fontSize: "12px",
+    paddingTop: "1rem",
+    borderTop: "1px solid #eee",
   },
 };
