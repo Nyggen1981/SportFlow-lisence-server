@@ -110,6 +110,22 @@ async function main() {
 
   console.log("✅ Asset register module created:", assetRegistryModule.name);
 
+  // Kostnadsmodul for dommerregninger og andre utlegg
+  const costTrackingModule = await prisma.module.upsert({
+    where: { key: "cost-tracking" },
+    update: {},
+    create: {
+      key: "cost-tracking",
+      name: "Kostnadsmodul",
+      description: "Håndtering av dommerregninger, reiseutgifter og andre utlegg",
+      isStandard: false,
+      isActive: true,
+      price: 99 // kr/mnd ekstra
+    }
+  });
+
+  console.log("✅ Cost tracking module created:", costTrackingModule.name);
+
   console.log("\n🎉 Seed completed successfully!");
 }
 
