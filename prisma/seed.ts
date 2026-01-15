@@ -110,13 +110,13 @@ async function main() {
 
   console.log("✅ Asset register module created:", assetRegistryModule.name);
 
-  // Kostnadsmodul for dommerregninger og andre utlegg
-  const costTrackingModule = await prisma.module.upsert({
-    where: { key: "cost-tracking" },
+  // Utlegg og refusjoner for dommerregninger og andre utlegg
+  const expensesModule = await prisma.module.upsert({
+    where: { key: "expenses" },
     update: {},
     create: {
-      key: "cost-tracking",
-      name: "Kostnadsmodul",
+      key: "expenses",
+      name: "Utlegg og refusjoner",
       description: "Håndtering av dommerregninger, reiseutgifter og andre utlegg",
       isStandard: false,
       isActive: true,
@@ -124,7 +124,7 @@ async function main() {
     }
   });
 
-  console.log("✅ Cost tracking module created:", costTrackingModule.name);
+  console.log("✅ Expenses module created:", expensesModule.name);
 
   console.log("\n🎉 Seed completed successfully!");
 }
