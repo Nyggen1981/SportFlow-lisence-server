@@ -95,11 +95,11 @@ async function main() {
   console.log("✅ Match setup module created:", matchSetupModule.name);
 
   // Anleggsregister-modul for administrasjon av idrettsanlegg
-  const facilityRegistryModule = await prisma.module.upsert({
-    where: { key: "facility-registry" },
+  const assetRegistryModule = await prisma.module.upsert({
+    where: { key: "asset-register" },
     update: {},
     create: {
-      key: "facility-registry",
+      key: "asset-register",
       name: "Anleggsregister",
       description: "Oversikt og administrasjon av idrettsanlegg",
       isStandard: false,
@@ -108,7 +108,7 @@ async function main() {
     }
   });
 
-  console.log("✅ Facility registry module created:", facilityRegistryModule.name);
+  console.log("✅ Asset register module created:", assetRegistryModule.name);
 
   console.log("\n🎉 Seed completed successfully!");
 }
