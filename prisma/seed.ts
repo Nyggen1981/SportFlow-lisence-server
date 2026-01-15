@@ -94,6 +94,22 @@ async function main() {
 
   console.log("✅ Match setup module created:", matchSetupModule.name);
 
+  // Anleggsregister-modul for administrasjon av idrettsanlegg
+  const facilityRegistryModule = await prisma.module.upsert({
+    where: { key: "facility-registry" },
+    update: {},
+    create: {
+      key: "facility-registry",
+      name: "Anleggsregister",
+      description: "Oversikt og administrasjon av idrettsanlegg",
+      isStandard: false,
+      isActive: true,
+      price: 99 // kr/mnd ekstra
+    }
+  });
+
+  console.log("✅ Facility registry module created:", facilityRegistryModule.name);
+
   console.log("\n🎉 Seed completed successfully!");
 }
 
