@@ -82,6 +82,7 @@ export default function InvoicesPage() {
   
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
+  const [confirmSendInvoice, setConfirmSendInvoice] = useState<Invoice | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -504,7 +505,7 @@ export default function InvoicesPage() {
                       <>
                         <button
                           style={styles.actionBtn}
-                          onClick={() => sendInvoiceByEmail(invoice)}
+                          onClick={() => setConfirmSendInvoice(invoice)}
                           disabled={sendingEmail === invoice.id}
                           title="Send på e-post"
                         >
@@ -669,6 +670,67 @@ export default function InvoicesPage() {
                 disabled={creating || !createOrgId}
               >
                 {creating ? "Oppretter..." : "Opprett faktura"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Email Confirmation Modal */}
+      {confirmSendInvoice && (
+        <div style={styles.modalOverlay} onClick={() => setConfirmSendInvoice(null)}>
+          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+            <h2 style={styles.modalTitle}>Send faktura på e-post</h2>
+            
+            <div style={{ marginBottom: "20px" }}>
+              <p style={{ marginBottom: "12px", color: "#475569" }}>
+                Er du sikker på at du vil sende denne fakturaen?
+              </p>
+              
+              <div style={{ 
+                background: "#f8fafc", 
+                borderRadius: "8px", 
+                padding: "16px",
+                border: "1px solid #e2e8f0"
+              }}>
+                <div style={{ marginBottom: "8px" }}>
+                  <strong>Faktura:</strong> {confirmSendInvoice.invoiceNumber}
+                </div>
+                <div style={{ marginBottom: "8px" }}>
+                  <strong>Kunde:</strong> {confirmSendInvoice.organization.name}
+                </div>
+                <div style={{ marginBottom: "8px" }}>
+                  <strong>Beløp:</strong> {confirmSendInvoice.amount} kr
+                </div>
+                <div style={{ 
+                  marginTop: "12px", 
+                  padding: "12px", 
+                  background: "#dbeafe", 
+                  borderRadius: "6px",
+                  border: "1px solid #93c5fd"
+                }}>
+                  <strong>📧 Sendes til:</strong>
+                  <div style={{ marginTop: "4px", fontSize: "15px", color: "#1e40af" }}>
+                    {confirmSendInvoice.organization.contactEmail}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div style={styles.modalActions}>
+              <button style={styles.cancelBtn} onClick={() => setConfirmSendInvoice(null)}>
+                Avbryt
+              </button>
+              <button 
+                style={{ ...sharedStyles.primaryBtn, background: "#2563eb" }}
+                onClick={() => {
+                  const invoice = confirmSendInvoice;
+                  setConfirmSendInvoice(null);
+                  sendInvoiceByEmail(invoice);
+                }}
+                disabled={sendingEmail === confirmSendInvoice.id}
+              >
+                {sendingEmail === confirmSendInvoice.id ? "Sender..." : "Send e-post"}
               </button>
             </div>
           </div>
