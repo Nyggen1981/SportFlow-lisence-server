@@ -679,38 +679,39 @@ export default function InvoicesPage() {
       {/* Send Email Confirmation Modal */}
       {confirmSendInvoice && (
         <div style={styles.modalOverlay} onClick={() => setConfirmSendInvoice(null)}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
-            <h2 style={styles.modalTitle}>Send faktura på e-post</h2>
+          <div style={{ ...styles.modal, background: "#1e293b", color: "#f1f5f9" }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ ...styles.modalTitle, color: "#f1f5f9" }}>Send faktura på e-post</h2>
             
             <div style={{ marginBottom: "20px" }}>
-              <p style={{ marginBottom: "12px", color: "#475569" }}>
+              <p style={{ marginBottom: "12px", color: "#94a3b8" }}>
                 Er du sikker på at du vil sende denne fakturaen?
               </p>
               
               <div style={{ 
-                background: "#f8fafc", 
+                background: "#334155", 
                 borderRadius: "8px", 
                 padding: "16px",
-                border: "1px solid #e2e8f0"
+                border: "1px solid #475569",
+                color: "#e2e8f0"
               }}>
                 <div style={{ marginBottom: "8px" }}>
-                  <strong>Faktura:</strong> {confirmSendInvoice.invoiceNumber}
+                  <strong style={{ color: "#f1f5f9" }}>Faktura:</strong> {confirmSendInvoice.invoiceNumber}
                 </div>
                 <div style={{ marginBottom: "8px" }}>
-                  <strong>Kunde:</strong> {confirmSendInvoice.organization.name}
+                  <strong style={{ color: "#f1f5f9" }}>Kunde:</strong> {confirmSendInvoice.organization.name}
                 </div>
                 <div style={{ marginBottom: "8px" }}>
-                  <strong>Beløp:</strong> {confirmSendInvoice.amount} kr
+                  <strong style={{ color: "#f1f5f9" }}>Beløp:</strong> {confirmSendInvoice.amount} kr
                 </div>
                 <div style={{ 
                   marginTop: "12px", 
                   padding: "12px", 
-                  background: "#dbeafe", 
+                  background: "#1e3a5f", 
                   borderRadius: "6px",
-                  border: "1px solid #93c5fd"
+                  border: "1px solid #3b82f6"
                 }}>
-                  <strong>📧 Sendes til:</strong>
-                  <div style={{ marginTop: "4px", fontSize: "15px", color: "#1e40af" }}>
+                  <strong style={{ color: "#93c5fd" }}>📧 Sendes til:</strong>
+                  <div style={{ marginTop: "4px", fontSize: "15px", color: "#60a5fa" }}>
                     {confirmSendInvoice.organization.contactEmail}
                   </div>
                 </div>
@@ -718,11 +719,11 @@ export default function InvoicesPage() {
             </div>
             
             <div style={styles.modalActions}>
-              <button style={styles.cancelBtn} onClick={() => setConfirmSendInvoice(null)}>
+              <button style={{ ...styles.cancelBtn, background: "#475569", color: "#f1f5f9", border: "1px solid #64748b" }} onClick={() => setConfirmSendInvoice(null)}>
                 Avbryt
               </button>
               <button 
-                style={{ ...sharedStyles.primaryBtn, background: "#2563eb" }}
+                style={{ ...sharedStyles.primaryBtn, background: "#2563eb", color: "#fff" }}
                 onClick={() => {
                   const invoice = confirmSendInvoice;
                   setConfirmSendInvoice(null);
