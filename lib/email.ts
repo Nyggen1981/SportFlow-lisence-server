@@ -2,11 +2,11 @@ import nodemailer from "nodemailer";
 
 // SMTP-konfigurasjon fra miljøvariabler
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "sleipner.domene.no",
+  host: process.env.SMTP_HOST || "mail.nygaardsolutions.no",
   port: parseInt(process.env.SMTP_PORT || "465"),
   secure: true, // true for port 465 (SSL)
   auth: {
-    user: process.env.SMTP_USER || "faktura@nyggensolutions.no",
+    user: process.env.SMTP_USER || "post@nygaardsolutions.no",
     pass: process.env.SMTP_PASS,
   },
 });
@@ -38,7 +38,7 @@ function replaceTemplateVars(template: string, data: InvoiceEmailData): string {
 }
 
 export async function sendInvoiceEmail(data: InvoiceEmailData): Promise<{ success: boolean; error?: string }> {
-  const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || "faktura@nyggensolutions.no";
+  const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || "post@nygaardsolutions.no";
   
   if (!process.env.SMTP_PASS) {
     return { success: false, error: "SMTP-passord er ikke konfigurert" };
